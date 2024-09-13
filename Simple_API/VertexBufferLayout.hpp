@@ -2,7 +2,7 @@
 #include <vector>
 #include <GL/glew.h>
 #include <cassert>
-#include "Renderer.hpp"
+#include "defines.hpp"
 struct VertexBufferLayoutElement{
     unsigned int type;
     unsigned int count;

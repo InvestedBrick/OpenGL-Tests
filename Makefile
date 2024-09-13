@@ -8,9 +8,11 @@ TARGET = Window
 all: $(TARGET)
 
 $(TARGET): $(SRC_FILES)
-	$(CXX) -o $(TARGET) $(SRC_FILES) $(MAIN_FILE) $(CXX_FLAGS) -I$(LOCAL_INCLUDE_DIR)
+	$(CXX) -o $(TARGET) $(SRC_FILES) $(MAIN_FILE) $(CXX_FLAGS) -I $(LOCAL_INCLUDE_DIR)
 
 clean: 
 	rm -f $(TARGET)
-
-.PHONY: all clean
+build:
+	make clean
+	make
+.PHONY: all clean build

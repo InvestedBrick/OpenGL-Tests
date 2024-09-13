@@ -1,5 +1,5 @@
 #include "Shader.hpp"
-#include "Renderer.hpp"
+#include "defines.hpp"
 #include <fstream>
 #include <sstream>
 #include <iostream>

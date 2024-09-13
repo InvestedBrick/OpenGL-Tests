@@ -1,12 +1,15 @@
 #pragma once
 #include <vector>
 #include <string>
-#include "Renderer.hpp"
+#include <unordered_map>
+
+#include "defines.hpp"
 
 class GlProgram{
 private:
     uint m_Renderer_ID;
     std::vector<uint> m_shaders;
+    std::unordered_map<std::string, int> m_uniform_cache;
 
 public:
 

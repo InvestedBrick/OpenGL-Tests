@@ -1,12 +1,13 @@
 #pragma once
 
-typedef unsigned int uint;
-#include <GL/glew.h>
-#include <cassert>
+#include "VertexArray.hpp"
+#include "IndexBuffer.hpp"
+#include "GlProgram.hpp"
 
-#define glCall(x) GlClearError();\
-    x;\
-    assert(GlLogErrors());
 
-void GlClearError();
-bool GlLogErrors();
+class Renderer{
+public:
+void clear() const;
+void draw(const VertexArray& vao,const IndexBuffer& ibo,const GlProgram& program) const;  
+
+};

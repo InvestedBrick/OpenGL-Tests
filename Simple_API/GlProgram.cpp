@@ -42,12 +42,15 @@ void GlProgram::set_uniform_4f(const std::string &name, float f0, float f1, floa
 }
 
 int GlProgram::get_uniform_location(const std::string &name)
-{
+{   
+    if(m_uniform_cache.find(name) != m_uniform_cache.end()){
+        return m_uniform_cache[name];
+    }
     glCall(int location = glGetUniformLocation(m_Renderer_ID,name.c_str()));
-
 
     if (location == -1){
         std::cerr << "[WARNING]: Uniform '" << name << "' does not exist!" << std::endl;
     }
+    m_uniform_cache[name] = location;
     return location;
 }
