@@ -1,6 +1,6 @@
 #pragma once
 
-
+typedef unsigned int uint;
 #include <GL/glew.h>
 #include <cassert>
 

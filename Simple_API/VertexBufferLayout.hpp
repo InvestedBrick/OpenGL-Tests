@@ -27,10 +27,6 @@ private:
 public:
     VertexBufferLayout() : m_stride(0){}
 
-    template<typename T>
-    void push(unsigned int count){
-        static_assert(false);
-    }
 
     void push(unsigned int gl_type,unsigned int count);
 
