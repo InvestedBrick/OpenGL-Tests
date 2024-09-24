@@ -22,7 +22,6 @@ GlProgram::~GlProgram()
 void GlProgram::bind() const
 {
     glCall(glUseProgram(m_Renderer_ID));
-    std::cout << "Bound Program: " << m_Renderer_ID << std::endl;
 }
 
 void GlProgram::unbind() const
