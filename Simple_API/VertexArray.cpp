@@ -1,5 +1,6 @@
 #include "VertexArray.hpp"
 #include "defines.hpp"
+#include <iostream>
 VertexArray::VertexArray()
 {
     glCall(glGenVertexArrays(1,&m_Renderer_ID));
@@ -11,7 +12,8 @@ VertexArray::~VertexArray()
 }
 
 void VertexArray::add_buffer(const VertexBuffer &vb, const VertexBufferLayout &vbl)
-{   bind();
+{   
+    bind();
     vb.bind();
     const auto& elements = vbl.get_elements();
     unsigned int offset = 0;
@@ -25,7 +27,9 @@ void VertexArray::add_buffer(const VertexBuffer &vb, const VertexBufferLayout &v
 }
 void VertexArray::bind() const
 {
+    std::cout << m_Renderer_ID << std::endl;
     glCall(glBindVertexArray(m_Renderer_ID));
+    std::cout << "bound " << m_Renderer_ID << std::endl;
 }
 
 void VertexArray::unbind() const 

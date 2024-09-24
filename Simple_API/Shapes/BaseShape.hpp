@@ -3,8 +3,8 @@
 #include <memory>
 class BaseShape{
 protected:
-    std::unique_ptr<float[]> positions;
-    std::unique_ptr<uint[]> indices;
+    std::shared_ptr<float[]> positions;
+    std::shared_ptr<uint[]> indices;
     float origin[2];
 public:
     uint direction;
