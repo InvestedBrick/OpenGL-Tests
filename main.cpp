@@ -32,7 +32,7 @@ int main(void) {
 
     std::random_device dev;
     std::mt19937 rng(dev());
-    std::uniform_real_distribution<float> dist(-1.f,1.f);
+    std::uniform_real_distribution<float> dist(-0.9f,0.9f);
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -66,19 +66,22 @@ int main(void) {
     std::cout << "Version: " << glGetString(GL_VERSION) << std::endl;
     
     #define N_ITEMS 4
+    #define N_CIRCLES 10000
     #define SCALE 0.5f
     //Rectangle squares[N_ITEMS] = {{-1.f,1.f,SCALE}
     //                             ,{1.f - SCALE,1.f,SCALE}
     //                             ,{1.f - SCALE,-(1.f- SCALE),SCALE}
     //                             ,{-1.f,-(1.f - SCALE),SCALE}};
-    std::vector<Circle> circs(2, Circle(dist(rng), dist(rng), 30, 0.02f));
+    std::vector<Circle> circs; circs.reserve(N_CIRCLES);
     std::vector<const float*> circ_positions;
     std::vector<const uint*> circ_indices;
-    std::vector<VertexArray> circ_vaos;
-    std::vector<VertexBuffer> circ_vbs;
-    std::vector<IndexBuffer> circ_ibos;
+    std::vector<VertexArray> circ_vaos;circ_vaos.reserve(N_CIRCLES);
+    std::vector<VertexBuffer> circ_vbs;circ_vbs.reserve(N_CIRCLES);
+    std::vector<IndexBuffer> circ_ibos;circ_ibos.reserve(N_CIRCLES);
 
-    for (size_t i = 0; i < circs.size(); i++) {
+    for (size_t i = 0; i < N_CIRCLES; i++) {
+        circs.emplace_back(dist(rng), dist(rng), 10, 0.01f);
+
         circ_positions.push_back(circs[i].get_positions());
         circ_indices.push_back(circs[i].get_indices());
         
@@ -142,7 +145,7 @@ int main(void) {
         renderer.clear();
         // Bind the program and set the uniform color
         prog.bind();
-        prog.set_uniform_4f("u_color", 0.f, 0.f, 0.5f, 1.0f);
+        prog.set_uniform_4f("u_color", 0.f, 0.f, 0.0f, 1.0f);
         /*
         for(uint i = 0; i < N_ITEMS; i++){
             const float* move_pos = squares[i].get_positions();
@@ -170,9 +173,7 @@ int main(void) {
             vbs[i].unbind();
         }
         */
-
-        for (size_t i = 0; i < circs.size(); i++){
-            std::cout << "Here?" << std::endl;
+        for (uint i = 0; i < N_CIRCLES; i++){
             renderer.draw(circ_vaos[i],circ_ibos[i],prog,GL_TRIANGLE_FAN);
         }
 
