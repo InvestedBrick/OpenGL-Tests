@@ -11,7 +11,6 @@ void Renderer::draw(const VertexArray &vao, const IndexBuffer &ibo, const GlProg
 {
     program.bind();
     vao.bind();
-    std::cout << "----------" << std::endl;
     ibo.bind();
 
 
