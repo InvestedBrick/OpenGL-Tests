@@ -49,18 +49,18 @@ public:
 
     }
 
-    const float* get_positions() const override{
-        return positions.get();
+    const std::vector<float>& get_positions() const override{
+        return positions;
     }
-    const uint* get_indices() const override{
-        return indices.get();
+    const std::vector<uint>& get_indices() const override{
+        return indices;
     }
     void init_positions() override{
-        positions = std::make_unique<float[]>(6);
+        positions.resize(6);
     }
 
     void init_indices() override{
-        indices = std::make_unique<uint[]>(3);
+        indices.resize(3);
         indices[0] = 0;
         indices[1] = 1;
         indices[2] = 2;
