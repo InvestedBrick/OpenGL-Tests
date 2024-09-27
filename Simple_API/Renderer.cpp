@@ -13,8 +13,6 @@ void Renderer::draw(const VertexArray &vao, const IndexBuffer &ibo, const GlProg
     vao.bind();
     ibo.bind();
 
-
     glCall(glDrawElements(mode, ibo.get_count(),GL_UNSIGNED_INT, nullptr));
-
 
 }
