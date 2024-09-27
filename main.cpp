@@ -32,7 +32,7 @@ int main(void) {
 
     std::random_device dev;
     std::mt19937 rng(dev());
-    std::uniform_real_distribution<float> dist(-0.9f,0.9f);
+    std::uniform_real_distribution<float> dist(-0.95f,0.95f);
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -66,33 +66,46 @@ int main(void) {
     std::cout << "Version: " << glGetString(GL_VERSION) << std::endl;
     
     #define N_ITEMS 4
-    #define N_CIRCLES 10000
     #define SCALE 0.5f
+    
+    #define N_CIRCLES 300000
+    #define CIRCLE_SEGMENTS 10
     //Rectangle squares[N_ITEMS] = {{-1.f,1.f,SCALE}
     //                             ,{1.f - SCALE,1.f,SCALE}
     //                             ,{1.f - SCALE,-(1.f- SCALE),SCALE}
     //                             ,{-1.f,-(1.f - SCALE),SCALE}};
     std::vector<Circle> circs; circs.reserve(N_CIRCLES);
-    std::vector<const float*> circ_positions;
-    std::vector<const uint*> circ_indices;
-    std::vector<VertexArray> circ_vaos;circ_vaos.reserve(N_CIRCLES);
-    std::vector<VertexBuffer> circ_vbs;circ_vbs.reserve(N_CIRCLES);
-    std::vector<IndexBuffer> circ_ibos;circ_ibos.reserve(N_CIRCLES);
 
     for (size_t i = 0; i < N_CIRCLES; i++) {
-        circs.emplace_back(dist(rng), dist(rng), 10, 0.01f);
-
-        circ_positions.push_back(circs[i].get_positions());
-        circ_indices.push_back(circs[i].get_indices());
-        
-        circ_vbs.emplace_back(circ_positions.back(), circs[i].get_positions_size());
-        circ_ibos.emplace_back(circ_indices.back(), circs[i].get_indices_size());
-
-        VertexBufferLayout circ_vbl;
-        circ_vbl.push(GL_FLOAT, 2);
-        circ_vaos.emplace_back();
-        circ_vaos.back().add_buffer(circ_vbs[i], circ_vbl);
+        circs.emplace_back(dist(rng), dist(rng), CIRCLE_SEGMENTS, 0.002f);
     }
+
+    const uint circ_pos_size = N_CIRCLES * ((CIRCLE_SEGMENTS + 1) * 2);
+    const uint circ_idx_size = N_CIRCLES * ((CIRCLE_SEGMENTS * 3));
+
+    std::vector<float> circ_positions; circ_positions.reserve(circ_pos_size);
+    std::vector<uint> circ_indices; circ_indices.reserve(circ_idx_size);
+
+    for (int i = 0; i < N_CIRCLES;i++){
+        const std::vector<float>& positions = circs[i].get_positions();
+        circ_positions.insert(circ_positions.end(),positions.begin(),positions.end());
+    }
+    for (int i = 0; i < N_CIRCLES;i++){
+        const std::vector<uint>& indices = circs[i].get_indices();
+        for (int j = 0; j < (CIRCLE_SEGMENTS * 3); j++) {
+            circ_indices[(i * (CIRCLE_SEGMENTS * 3)) + j] = indices[j] + (i * ((CIRCLE_SEGMENTS + 1) ));
+        }
+    }
+
+
+    VertexBuffer circ_vb(circ_positions.data(),circ_pos_size * sizeof(float));
+    IndexBuffer circ_ibo(circ_indices.data(),circ_idx_size);
+    
+    VertexArray circ_vao;
+    VertexBufferLayout circ_vbl;
+    circ_vbl.push(GL_FLOAT,2);
+    circ_vao.add_buffer(circ_vb,circ_vbl);
+
 
 //
 //    const float* positions[N_ITEMS];
@@ -118,8 +131,7 @@ int main(void) {
     GlProgram prog({Shader("./shaders/vertex.shader", GL_VERTEX_SHADER).get_shader_ID(),
                     Shader("./shaders/fragment.shader", GL_FRAGMENT_SHADER).get_shader_ID()});
     prog.bind();
-    //prog.delete_shaders(); // go out of scope
-    // Unbind everything to ensure clean state
+    prog.delete_shaders();
     unbind_all();
 
     Renderer renderer;
@@ -145,7 +157,7 @@ int main(void) {
         renderer.clear();
         // Bind the program and set the uniform color
         prog.bind();
-        prog.set_uniform_4f("u_color", 0.f, 0.f, 0.0f, 1.0f);
+        prog.set_uniform_4f("u_color", 1.f, 0.f, 0.0f, 1.0f);
         /*
         for(uint i = 0; i < N_ITEMS; i++){
             const float* move_pos = squares[i].get_positions();
@@ -173,9 +185,7 @@ int main(void) {
             vbs[i].unbind();
         }
         */
-        for (uint i = 0; i < N_CIRCLES; i++){
-            renderer.draw(circ_vaos[i],circ_ibos[i],prog,GL_TRIANGLE_FAN);
-        }
+        renderer.draw(circ_vao,circ_ibo,prog,GL_TRIANGLES);
 
         
         /* Swap front and back buffers */
@@ -183,8 +193,6 @@ int main(void) {
         /* Poll for and process events */
         glCall(glfwPollEvents());
     }
-    
-
     glfwTerminate();
     return 0;
 }
