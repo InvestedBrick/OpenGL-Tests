@@ -25,6 +25,12 @@ public:
         }
     }
 
+    void set_pos(float x, float y){
+        origin[0] = x;
+        origin[1] = y;
+        calc_positions();
+    }
+
     const uint get_positions_size() const override {
         return positions_size;
     }
@@ -32,7 +38,7 @@ public:
     const uint get_indices_size() const {
         return m_segments * 3;
     }
-
+    float get_radius() const{return m_radius;};
     void calc_positions() override {
         positions[0] = origin[0];
         positions[1] = origin[1];
