@@ -5,7 +5,6 @@ GlProgram::GlProgram(std::vector<uint> shaders)
 {
     m_Renderer_ID = glCreateProgram();
 
-    // Link the shaders together
     for (const uint shader: shaders){
         glCall(glAttachShader(m_Renderer_ID,shader));
     }
@@ -40,7 +39,14 @@ void GlProgram::set_uniform_4f(const std::string &name, float f0, float f1, floa
 {
     glCall(glUniform4f(get_uniform_location(name),f0,f1,f2,f3));
 }
-
+void GlProgram::set_uniform_mat4f(const std::string &name, uint count, bool transpose, const float *data)
+{
+    glCall(glUniformMatrix4fv(get_uniform_location(name),count,transpose,data));
+}
+void GlProgram::set_uniform_1ui(const std::string &name, int i)
+{
+    glCall(glUniform1ui(get_uniform_location(name),i));
+}
 int GlProgram::get_uniform_location(const std::string &name)
 {   
     if(m_uniform_cache.find(name) != m_uniform_cache.end()){
