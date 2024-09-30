@@ -1,17 +1,18 @@
 CXX = g++
-CXX_FLAGS = -pthread -lglfw -lGLEW -lGLU -lglut -lGL -lXrandr -lXxf86vm -lXi -lXinerama -lX11 -lrt -ldl
+CXXFLAGS = -I$(LOCAL_INCLUDE_DIR) -I$(SHAPES_INCLUDE_DIR)
+LDFLAGS = -pthread -lglfw -lGLEW -lGLU -lGL -lrt -ldl -lXrandr -lXxf86vm -lXi -lXinerama -lX11
 LOCAL_INCLUDE_DIR = ./Simple_API
 SHAPES_INCLUDE_DIR = $(LOCAL_INCLUDE_DIR)/Shapes
 SRC_FILES = $(wildcard $(LOCAL_INCLUDE_DIR)/*.cpp) $(wildcard $(SHAPES_INCLUDE_DIR)/*.cpp)
 MAIN_FILE = main.cpp
-TARGET = Window
+TARGET = Simulation
 
 all: $(TARGET)
 
-$(TARGET): $(SRC_FILES)
-	$(CXX) -o $(TARGET) $(MAIN_FILE) $(SRC_FILES) $(CXX_FLAGS) -I $(LOCAL_INCLUDE_DIR)
+$(TARGET): $(MAIN_FILE) $(SRC_FILES)
+	$(CXX) -o $(TARGET) $(MAIN_FILE) $(SRC_FILES) $(CXXFLAGS) $(LDFLAGS)
 
-clean: 
+clean:
 	rm -f $(TARGET)
 
 build: 
