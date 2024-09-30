@@ -21,7 +21,8 @@ public:
     void delete_shaders();
 
     void set_uniform_4f(const std::string& name, float f0,float f1, float f2, float f3);
-
+    void set_uniform_mat4f(const std::string& name,uint count,bool transpose,const float* data);
+    void set_uniform_1ui(const std::string& name,int i);
     uint get_Renderer_ID() const {return m_Renderer_ID;}
 
 private:
