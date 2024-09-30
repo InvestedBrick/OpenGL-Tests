@@ -22,6 +22,12 @@ void ShaderStorageBuffer::bind_to(uint binding)
     glCall(glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, m_Renderer_ID));
 }
 
+void ShaderStorageBuffer::update_data(const void *data, uint size)
+{
+    bind();
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, size, data); 
+}
+
 void ShaderStorageBuffer::unbind() const 
 {
     glCall(glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0));
