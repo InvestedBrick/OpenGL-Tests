@@ -4,7 +4,7 @@ ShaderStorageBuffer::ShaderStorageBuffer(const void *data, const unsigned int si
 {
     glCall(glGenBuffers(1, &m_Renderer_ID));
     glCall(glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_Renderer_ID));
-    glCall(glBufferData(GL_SHADER_STORAGE_BUFFER, size, data, GL_DYNAMIC_DRAW));
+    glCall(glBufferData(GL_SHADER_STORAGE_BUFFER, size, data, GL_DYNAMIC_COPY));
 }
 
 ShaderStorageBuffer::~ShaderStorageBuffer()
