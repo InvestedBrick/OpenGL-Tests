@@ -1,15 +1,15 @@
 #version 430
-// BUGGED AF
 layout (local_size_x = 64) in; 
 
 struct CircleData {
-    float mass; 
+    float mass;
+    float debug_info; 
     vec2 pos;     
     vec2 vel;
     vec2 force;      
 
 };
-const float G = 1;
+const float G = 0.01;
 const float mass_to_radius = 0.0001;
 layout (std430, binding = 0) buffer DataBuffer {
     CircleData data[];
@@ -32,7 +32,7 @@ void main() {
             float dist = sqrt(direction.x * direction.x + direction.y * direction.y);
             if (dist > (data[index].mass * mass_to_radius + data[i].mass * mass_to_radius)) {
                 float force_magnitude = (G * data[index].mass * data[i].mass) / (dist * dist);
-                force_magnitude = min(force_magnitude,0.01);
+                force_magnitude = min(force_magnitude,0.1);
                 force = (direction / dist) * force_magnitude; 
             }
             data[index].force += force;
