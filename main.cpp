@@ -23,13 +23,14 @@
 
 #define WINDOW_HEIGHT 1080
 #define WINDOW_WIDTH 1080
-#define GRAVITATIONAL_CONSTANT 0.001
-#define MASS_TO_RADIUS 0.0003
+#define GRAVITATIONAL_CONSTANT 0.01
+#define MASS_TO_RADIUS 0.0001
 #define MOUSE_NOTHING_POS -10
 #define VSYNC 1
 #define CPU_STATE 1
 #define GPU_STATE 0
-#define N_CIRCLES 50
+#define N_CIRCLES 2000
+#define CIRCLE_SEGMENTS 10
 
 struct vec2f{
     float x;
@@ -82,6 +83,7 @@ struct Circle_Texture
 vec2f compute_gravitational_force(Circle_Object& body1, const Circle_Object& body2) {
     vec2f force = {0.0f, 0.0f};
     vec2f r_vector = body2.pos - body1.pos;
+    body1.padding_0 = body2.pos.x;
     float distance = sqrt(r_vector.x * r_vector.x + r_vector.y * r_vector.y);
     body1.padding_0 = distance * distance;
     if (distance > 0.0){
@@ -239,17 +241,16 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Version: " << glGetString(GL_VERSION) << std::endl;
     
-    #define CIRCLE_SEGMENTS 10
     const uint local_size = 64; // must be same as in compute shader
     const uint work_group_size = (N_CIRCLES + local_size - 1) / local_size;
     std::vector<Circle_Object> circs; circs.reserve(N_CIRCLES);
     std::vector<Circle_Texture> circle_textures; circle_textures.reserve(N_CIRCLES);
     for (size_t i = 0; i < N_CIRCLES ; i++) {
-        float mass = mass_dist(rng);
+        float mass = mass_dist(rng); 
         float pos_x = dist(rng);
         float pos_y = dist(rng);
         vec2f random_velocity = vec2f(vel_dist(rng), vel_dist(rng));
-        circs.emplace_back(pos_x,pos_y,mass,vec2f{ pos_y / 10 + random_velocity.x,-pos_x / 10 + random_velocity.y});
+        circs.emplace_back(pos_x,pos_y,mass,vec2f{pos_y / 10 + random_velocity.x,-pos_x / 10 + random_velocity.y});
         circle_textures.emplace_back(pos_x,pos_y,CIRCLE_SEGMENTS,i * ((CIRCLE_SEGMENTS + 1) * 2) * sizeof(float),mass * MASS_TO_RADIUS);
     }   
     const uint circ_pos_size = N_CIRCLES * ((CIRCLE_SEGMENTS + 1) * 2);
@@ -277,8 +278,7 @@ int main(int argc, char* argv[]) {
     
     //Only works, becaouse circles are constant
     ShaderStorageBuffer ssbo(circs.data(),circs.size() * sizeof(Circle_Object));
-    ssbo.bind();
-    ssbo.bind_to(0);
+    
     GlProgram prog({Shader("./shaders/vertex.shader", GL_VERTEX_SHADER).get_shader_ID(),
                     Shader("./shaders/fragment.shader", GL_FRAGMENT_SHADER).get_shader_ID()});
     prog.bind();
@@ -327,14 +327,15 @@ int main(int argc, char* argv[]) {
         if (!paused){
             if (state == GPU_STATE){
                 compute_prog.bind();
+                ssbo.bind();
+                ssbo.update_data(circs.data(),circs.size() * sizeof(Circle_Object));
+                ssbo.bind_to(0);
                 glCall(glDispatchCompute(work_group_size, 1, 1));  
                 glCall(glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)); 
-                ssbo.bind();
                 Circle_Object* data = (Circle_Object*)glMapBuffer(GL_SHADER_STORAGE_BUFFER,GL_READ_ONLY);
                 if (data){
                     for (uint i = 0; i < N_CIRCLES;++i){
                         circs[i].force = data[i].force;
-
                     }
                     glCall(glUnmapBuffer(GL_SHADER_STORAGE_BUFFER));
                 }
@@ -344,14 +345,11 @@ int main(int argc, char* argv[]) {
                     for (int j = 0; j < N_CIRCLES; ++j) {
                         if (i != j) {
                             circs[i].force += compute_gravitational_force(circs[i], circs[j]);
-
                         }
                     }
                 }
             }
             
-            
-            prog.bind();
             for (int i = 0; i < N_CIRCLES; ++i) {
                 circs[i].vel += (circs[i].force / circs[i].mass) * calculation_dt;
                 circs[i].force.x = 0;
@@ -368,11 +366,8 @@ int main(int argc, char* argv[]) {
             }
         }
         /* Render here */
-        prog.bind();
-        prog.set_uniform_4f("u_color", 1.f, 0.f, 0.0f, 1.0f);
         renderer.draw(circ_vao,circ_ibo,prog,GL_TRIANGLES);
 
-        
         /* Swap front and back buffers */
         glCall(glfwSwapBuffers(window));
         /* Poll for and process events */
