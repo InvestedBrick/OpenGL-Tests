@@ -49,6 +49,11 @@ struct vec2f{
         y += other.y;
         return *this; 
     }
+    vec2f& operator-=(const vec2f& other) {
+        x -= other.x;
+        y -= other.y;
+        return *this; 
+    }
     vec2f operator-(const vec2f& other) const{
         return vec2f(x - other.x,y - other.y);
     }
@@ -202,8 +207,8 @@ int main(int argc, char* argv[]) {
     std::random_device dev;
     std::mt19937 rng(dev());
     std::uniform_real_distribution<float> dist(-1.f,1.f);
-    std::normal_distribution<float> mass_dist(40.f,10.f);
-    std::uniform_real_distribution<float> vel_dist(-0.02f, 0.02f);
+    std::normal_distribution<float> mass_dist(50.f,10.f);
+    std::uniform_real_distribution<float> vel_dist(-0.03f, 0.03f);
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -250,7 +255,7 @@ int main(int argc, char* argv[]) {
         float pos_x = dist(rng);
         float pos_y = dist(rng);
         vec2f random_velocity = vec2f(vel_dist(rng), vel_dist(rng));
-        circs.emplace_back(pos_x,pos_y,mass,vec2f{pos_y / 10 + random_velocity.x,-pos_x / 10 + random_velocity.y});
+        circs.emplace_back(pos_x,pos_y,mass,vec2f{ pos_y / 5 + random_velocity.x, -pos_x / 5 + random_velocity.y}); 
         circle_textures.emplace_back(pos_x,pos_y,CIRCLE_SEGMENTS,i * ((CIRCLE_SEGMENTS + 1) * 2) * sizeof(float),mass * MASS_TO_RADIUS);
     }   
     const uint circ_pos_size = N_CIRCLES * ((CIRCLE_SEGMENTS + 1) * 2);
@@ -278,6 +283,7 @@ int main(int argc, char* argv[]) {
     
     //Only works, becaouse circles are constant
     ShaderStorageBuffer ssbo(circs.data(),circs.size() * sizeof(Circle_Object));
+    ssbo.bind_to(0);
     
     GlProgram prog({Shader("./shaders/vertex.shader", GL_VERTEX_SHADER).get_shader_ID(),
                     Shader("./shaders/fragment.shader", GL_FRAGMENT_SHADER).get_shader_ID()});
@@ -327,15 +333,13 @@ int main(int argc, char* argv[]) {
         if (!paused){
             if (state == GPU_STATE){
                 compute_prog.bind();
-                ssbo.bind();
                 ssbo.update_data(circs.data(),circs.size() * sizeof(Circle_Object));
-                ssbo.bind_to(0);
                 glCall(glDispatchCompute(work_group_size, 1, 1));  
                 glCall(glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)); 
                 Circle_Object* data = (Circle_Object*)glMapBuffer(GL_SHADER_STORAGE_BUFFER,GL_READ_ONLY);
                 if (data){
                     for (uint i = 0; i < N_CIRCLES;++i){
-                        circs[i].force = data[i].force;
+                        circs[i].vel = data[i].vel;
                     }
                     glCall(glUnmapBuffer(GL_SHADER_STORAGE_BUFFER));
                 }
@@ -351,12 +355,17 @@ int main(int argc, char* argv[]) {
             }
             
             for (int i = 0; i < N_CIRCLES; ++i) {
-                circs[i].vel += (circs[i].force / circs[i].mass) * calculation_dt;
-                circs[i].force.x = 0;
-                circs[i].force.y = 0;
+                if (state != GPU_STATE){
+                    circs[i].vel += (circs[i].force / circs[i].mass) * calculation_dt;
+                    circs[i].force.x = 0;
+                    circs[i].force.y = 0;
+                }
                 if(global_mouse_x != MOUSE_NOTHING_POS){
-                    circs[i].vel += (vec2f(global_mouse_x,global_mouse_y) - circs[i].pos) / (circs[i].mass * 0.03f) * calculation_dt;
-                    circs[i].vel =  circs[i].vel / 1.2f;
+                    vec2f dist = (vec2f(global_mouse_x,global_mouse_y) - circs[i].pos);
+                    float distance = sqrt(dist.x * dist.x + dist.y * dist.y);
+                    if (distance < 0.2){
+                        circs[i].vel -= (vec2f(global_mouse_x,global_mouse_y) - circs[i].pos) / (circs[i].mass * 0.01f) * calculation_dt;
+                    }
                 }
                 circs[i].pos += circs[i].vel * calculation_dt;
                 circle_textures[i].circ.set_pos(circs[i].pos.x,circs[i].pos.y);
