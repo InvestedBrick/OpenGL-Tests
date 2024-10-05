@@ -21,6 +21,9 @@
 #include "Simple_API/Shapes/Rectangle.hpp"
 #include "Simple_API/Shapes/Circle.hpp"
 
+#include "vec2.hpp"
+#include "Circle_Object.hpp" // I need the struct template for quadtrees too
+
 #define WINDOW_HEIGHT 1080
 #define WINDOW_WIDTH 1080
 #define GRAVITATIONAL_CONSTANT 0.01
@@ -32,51 +35,8 @@
 #define N_CIRCLES 2000
 #define CIRCLE_SEGMENTS 10
 
-struct vec2f{
-    float x;
-    float y;
-
-    vec2f(float pos_x, float pos_y){
-        x = pos_x;
-        y = pos_y;
-    }
-
-    vec2f operator+(const vec2f& other) const{
-        return vec2f(x + other.x,y + other.y);
-    }
-    vec2f& operator+=(const vec2f& other) {
-        x += other.x;
-        y += other.y;
-        return *this; 
-    }
-    vec2f& operator-=(const vec2f& other) {
-        x -= other.x;
-        y -= other.y;
-        return *this; 
-    }
-    vec2f operator-(const vec2f& other) const{
-        return vec2f(x - other.x,y - other.y);
-    }
-    vec2f operator*(const float scalar) const{
-        return vec2f(x * scalar,y * scalar);
-    }
-    vec2f operator/(const float scalar) const{
-        return vec2f(x / scalar,y / scalar);
-    }
-};
 
 
-
-struct Circle_Object
-{
-    Circle_Object(const float x, const float y,float m,const vec2f v = {0.f,0.f}) 
-        : mass(m),pos(x,y), vel(v){}
-    float mass;
-    float padding_0;
-    vec2f pos;
-    vec2f vel;
-    vec2f force{0.f,0.f};
-};
 struct Circle_Texture
 {
     Circle_Texture(const float x, const float y,uint n_segments,const uint vb_position,const float radius = 1.f) : circ(x,y,n_segments,radius),vb_pos(vb_position){}
@@ -206,7 +166,7 @@ int main(int argc, char* argv[]) {
     }
     std::random_device dev;
     std::mt19937 rng(dev());
-    std::uniform_real_distribution<float> dist(-1.f,1.f);
+    std::normal_distribution<float> dist(0,1.f);
     std::normal_distribution<float> mass_dist(50.f,10.f);
     std::uniform_real_distribution<float> vel_dist(-0.03f, 0.03f);
 
