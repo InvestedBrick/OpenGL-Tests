@@ -1,4 +1,6 @@
 #pragma once
+#include <string>
+#include <ostream>
 struct vec2f{
     float x;
     float y;
@@ -31,5 +33,10 @@ struct vec2f{
     }
     vec2f operator/(const float scalar) const{
         return vec2f(x / scalar,y / scalar);
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const vec2f& vec) {
+        os << "(" << vec.x << ", " << vec.y << ")";
+        return os;
     }
 };
