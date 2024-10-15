@@ -1,3 +1,5 @@
 .vscode/
 .vscode/*
+./Barnes-Hut/test
+./Barnes-Hut/test.cpp
 linecounter.py
