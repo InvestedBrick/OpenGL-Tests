@@ -31,7 +31,7 @@ void main() {
             float dist = sqrt(direction.x * direction.x + direction.y * direction.y);
             if (dist > (data[index].mass * mass_to_radius + data[i].mass * mass_to_radius)) {
                 float force_magnitude = (G * data[index].mass * data[i].mass) / (dist * dist);
-                force_magnitude = min(force_magnitude,0.001);
+                force_magnitude = min(force_magnitude,0.01);
                 force = (direction / dist) * force_magnitude; 
             }
             data[index].force += force;
