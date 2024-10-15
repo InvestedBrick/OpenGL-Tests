@@ -12,7 +12,7 @@
 #include "Simple_API/VertexBuffer.hpp"
 #include "Simple_API/IndexBuffer.hpp"
 #include "Simple_API/VertexArray.hpp"
-#include "../Graphics/Simple_API/ShaderStorageBuffer.hpp"
+#include "Simple_API/ShaderStorageBuffer.hpp"
 #include "Simple_API/Shader.hpp"
 #include "Simple_API/GlProgram.hpp"
 #include "Simple_API/Renderer.hpp"
@@ -24,16 +24,8 @@
 #include "vec2.hpp"
 #include "Circle_Object.hpp" // I need the struct template for quadtrees too
 
-#define WINDOW_HEIGHT 1080
-#define WINDOW_WIDTH 1080
-#define GRAVITATIONAL_CONSTANT 0.01
-#define MASS_TO_RADIUS 0.0001
-#define MOUSE_NOTHING_POS -10
-#define VSYNC 1
-#define CPU_STATE 1
-#define GPU_STATE 0
-#define N_CIRCLES 2000
-#define CIRCLE_SEGMENTS 10
+#include "Barnes-Hut/Quadtree.hpp"
+
 
 
 
@@ -48,9 +40,9 @@ struct Circle_Texture
 vec2f compute_gravitational_force(Circle_Object& body1, const Circle_Object& body2) {
     vec2f force = {0.0f, 0.0f};
     vec2f r_vector = body2.pos - body1.pos;
-    body1.padding_0 = body2.pos.x;
+    //body1.padding_0 = body2.pos.x;
     float distance = sqrt(r_vector.x * r_vector.x + r_vector.y * r_vector.y);
-    body1.padding_0 = distance * distance;
+    //body1.padding_0 = distance * distance;
     if (distance > 0.0){
         float force_magnitude = GRAVITATIONAL_CONSTANT * body1.mass * body2.mass / (distance * distance);
         const float max_force = 0.01f; 
@@ -78,8 +70,8 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     {
         double xpos, ypos;
         glfwGetCursorPos(window, &xpos, &ypos);
-        xpos = (xpos / (WINDOW_WIDTH / 2)) - 1;
-        ypos = (-ypos / (WINDOW_HEIGHT / 2)) + 1;
+        xpos = 2*(xpos / WINDOW_WIDTH ) - 1;
+        ypos = -2*(ypos / WINDOW_HEIGHT) + 1;
 
         global_mouse_x = xpos;
         global_mouse_y = ypos;
@@ -153,8 +145,9 @@ void updateCamera() {
     }
 }
 int main(int argc, char* argv[]) {
+    int N_CIRCLES = 2000;
     bool state;
-    if (argc == 2){
+    if (argc >= 2 && argc <= 3){
         if(std::string(argv[1]) == "-cpu"){
             state = CPU_STATE;
             std::cout << "Set CPU State" << std::endl;
@@ -163,10 +156,16 @@ int main(int argc, char* argv[]) {
             state = GPU_STATE;
             std::cout << "Set GPU State" << std::endl;
         }
+        if (argc == 3){
+            N_CIRCLES = std::atoi(argv[2]);
+        }
     }
     std::random_device dev;
     std::mt19937 rng(dev());
-    std::normal_distribution<float> dist(0,1.f);
+    std::normal_distribution<float> dist0(0,0.4f);
+    std::normal_distribution<float> dist1(2,0.3f);
+    std::normal_distribution<float> dist2(-2,0.3f);
+
     std::normal_distribution<float> mass_dist(50.f,10.f);
     std::uniform_real_distribution<float> vel_dist(-0.03f, 0.03f);
 
@@ -205,19 +204,44 @@ int main(int argc, char* argv[]) {
     glCall(glViewport(0,0,WINDOW_WIDTH,WINDOW_HEIGHT));
 
     std::cout << "Version: " << glGetString(GL_VERSION) << std::endl;
-    
+    Quadtree qtree;
     const uint local_size = 64; // must be same as in compute shader
     const uint work_group_size = (N_CIRCLES + local_size - 1) / local_size;
     std::vector<Circle_Object> circs; circs.reserve(N_CIRCLES);
     std::vector<Circle_Texture> circle_textures; circle_textures.reserve(N_CIRCLES);
-    for (size_t i = 0; i < N_CIRCLES ; i++) {
+    float radius = 3.0f;   
+
+    for (size_t i = 0; i < N_CIRCLES; i++) {
+        float pos_x,pos_y;
+        /*
+        if (i < N_CIRCLES / 3){
+            float angle = (2.0f * M_PI * i) / (N_CIRCLES / 3); 
+            pos_x = radius * cos(angle) + vel_dist(rng) * 5; // just using velociy distribution to not have to create a new dist with similar values  
+            pos_y = radius * sin(angle) + vel_dist(rng) * 5;  
+        }else{
+            pos_x = dist0(rng);
+            pos_y = dist0(rng);
+        }
+        */
+       
+        if (i < N_CIRCLES / 2){
+            pos_x = dist1(rng) ;
+            pos_y = dist1(rng) ;
+        } else if(i > N_CIRCLES / 4 && i < N_CIRCLES / 1.6){
+            pos_x = dist2(rng);
+            pos_y = dist2(rng);
+        }else{
+            pos_x = dist0(rng);
+            pos_y = dist0(rng);
+        }
+    
         float mass = mass_dist(rng); 
-        float pos_x = dist(rng);
-        float pos_y = dist(rng);
         vec2f random_velocity = vec2f(vel_dist(rng), vel_dist(rng));
         circs.emplace_back(pos_x,pos_y,mass,vec2f{ pos_y / 5 + random_velocity.x, -pos_x / 5 + random_velocity.y}); 
         circle_textures.emplace_back(pos_x,pos_y,CIRCLE_SEGMENTS,i * ((CIRCLE_SEGMENTS + 1) * 2) * sizeof(float),mass * MASS_TO_RADIUS);
     }   
+
+    
     const uint circ_pos_size = N_CIRCLES * ((CIRCLE_SEGMENTS + 1) * 2);
     const uint circ_idx_size = N_CIRCLES * ((CIRCLE_SEGMENTS * 3));
 
@@ -312,6 +336,17 @@ int main(int argc, char* argv[]) {
                         }
                     }
                 }
+
+                // build the quadtree
+
+                //for (auto& circ : circs){
+                //    tree.insert_body(circ);
+                //}
+                //// calculate forces
+                //for (auto& circ : circs){
+                //    tree.apply_force(circ);
+                //}
+
             }
             
             for (int i = 0; i < N_CIRCLES; ++i) {
@@ -323,9 +358,8 @@ int main(int argc, char* argv[]) {
                 if(global_mouse_x != MOUSE_NOTHING_POS){
                     vec2f dist = (vec2f(global_mouse_x,global_mouse_y) - circs[i].pos);
                     float distance = sqrt(dist.x * dist.x + dist.y * dist.y);
-                    if (distance < 0.2){
-                        circs[i].vel -= (vec2f(global_mouse_x,global_mouse_y) - circs[i].pos) / (circs[i].mass * 0.01f) * calculation_dt;
-                    }
+                    circs[i].vel += (vec2f(global_mouse_x,global_mouse_y) - circs[i].pos) / (circs[i].mass * 0.01f) * calculation_dt;
+                    circs[i].vel = circs[i].vel /  1.2;
                 }
                 circs[i].pos += circs[i].vel * calculation_dt;
                 circle_textures[i].circ.set_pos(circs[i].pos.x,circs[i].pos.y);
