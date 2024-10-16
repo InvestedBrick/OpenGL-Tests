@@ -1,1 +1,1 @@
-Is runnign on GPU right now, may add barnes-hut
+Just a small gravity simulation, this is mainly to look pretty and not to be 100% scientifically accurate
