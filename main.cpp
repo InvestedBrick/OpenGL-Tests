@@ -45,6 +45,7 @@ vec2f compute_gravitational_force(Circle_Object& body1, const Circle_Object& bod
     //body1.padding_0 = distance * distance;
     if (distance > 0.0){
         float force_magnitude = GRAVITATIONAL_CONSTANT * body1.mass * body2.mass / (distance * distance);
+        std::cout << force_magnitude << std::endl;
         const float max_force = 0.01f; 
         if (force_magnitude > max_force) {
             force_magnitude = max_force;
@@ -204,7 +205,7 @@ int main(int argc, char* argv[]) {
     glCall(glViewport(0,0,WINDOW_WIDTH,WINDOW_HEIGHT));
 
     std::cout << "Version: " << glGetString(GL_VERSION) << std::endl;
-    Quadtree qtree;
+    Quadtree qtree(0.4f);
     const uint local_size = 64; // must be same as in compute shader
     const uint work_group_size = (N_CIRCLES + local_size - 1) / local_size;
     std::vector<Circle_Object> circs; circs.reserve(N_CIRCLES);
@@ -213,17 +214,17 @@ int main(int argc, char* argv[]) {
 
     for (size_t i = 0; i < N_CIRCLES; i++) {
         float pos_x,pos_y;
-        /*
+        
         if (i < N_CIRCLES / 3){
             float angle = (2.0f * M_PI * i) / (N_CIRCLES / 3); 
-            pos_x = radius * cos(angle) + vel_dist(rng) * 5; // just using velociy distribution to not have to create a new dist with similar values  
-            pos_y = radius * sin(angle) + vel_dist(rng) * 5;  
+            pos_x = radius * cos(angle) + vel_dist(rng) * 10; // just using velociy distribution to not have to create a new dist with similar values  
+            pos_y = radius * sin(angle) + vel_dist(rng) * 10;  
         }else{
             pos_x = dist0(rng);
             pos_y = dist0(rng);
         }
-        */
-       
+        
+        /*
         if (i < N_CIRCLES / 2){
             pos_x = dist1(rng) ;
             pos_y = dist1(rng) ;
@@ -234,7 +235,7 @@ int main(int argc, char* argv[]) {
             pos_x = dist0(rng);
             pos_y = dist0(rng);
         }
-    
+        */
         float mass = mass_dist(rng); 
         vec2f random_velocity = vec2f(vel_dist(rng), vel_dist(rng));
         circs.emplace_back(pos_x,pos_y,mass,vec2f{ pos_y / 5 + random_velocity.x, -pos_x / 5 + random_velocity.y}); 
@@ -329,23 +330,26 @@ int main(int argc, char* argv[]) {
                 }
             }
             else if (state == CPU_STATE){
-                for (int i = 0; i < N_CIRCLES; ++i) {
-                    for (int j = 0; j < N_CIRCLES; ++j) {
-                        if (i != j) {
-                            circs[i].force += compute_gravitational_force(circs[i], circs[j]);
-                        }
-                    }
+                //for (int i = 0; i < N_CIRCLES; ++i) {
+                //    for (int j = 0; j < N_CIRCLES; ++j) {
+                //        if (i != j) {
+                //            circs[i].force += compute_gravitational_force(circs[i], circs[j]);
+                //        }
+                //    }
+                //}
+
+                //build the quadtree
+                Quad quad;
+                quad = quad.initialize(circs);
+                qtree.reset(quad);
+                for (auto& circ : circs){
+                    qtree.insert_body(circ);
                 }
-
-                // build the quadtree
-
-                //for (auto& circ : circs){
-                //    tree.insert_body(circ);
-                //}
-                //// calculate forces
-                //for (auto& circ : circs){
-                //    tree.apply_force(circ);
-                //}
+                qtree.update_mass_centers();
+        
+                for (auto& circ : circs){
+                    qtree.apply_force(circ);
+                }
 
             }
             
