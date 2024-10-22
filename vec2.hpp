@@ -49,7 +49,9 @@ struct vec2f{
     vec2f operator/(const float scalar) const{
         return vec2f(x / scalar,y / scalar);
     }
-
+    float abs(){
+        return sqrt(x * x + y * y);
+    }
     friend std::ostream& operator<<(std::ostream& os, const vec2f& vec) {
         os << "(" << vec.x << ", " << vec.y << ")";
         return os;
