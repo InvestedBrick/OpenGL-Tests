@@ -13,6 +13,7 @@ struct Quad{
     Quad() = default;
     vec2f center{0.0,0.0};
     float size;
+    uint n_objects;
     Quad initialize(std::vector<Circle_Object> &objects);
     Quad into_quads(int quadrant) const {
         Quad result = *this;
@@ -56,14 +57,14 @@ private:
     };
 
     uint subdivide(uint node);
-    vec2f calc_force(Circle_Object& object, uint node);
+    vec2f calc_force(const Circle_Object& object, uint node);
 
     float get_dist_squared(const vec2f& a, const vec2f& b){
         float x_sq = (b.x - a.x) * (b.x - a.x);
         float y_sq = (b.y - a.y) * (b.y - a.y);
         return  x_sq + y_sq;
     }
-    bool should_approximate(Circle_Object& object, uint node){
+    bool should_approximate(const Circle_Object& object, uint node){
         return nodes[node].quad.size * nodes[node].quad.size / get_dist_squared(object.pos,nodes[node].center_of_mass) < this->theta * this->theta;
     }
     std::vector<uint> parents;
@@ -72,7 +73,7 @@ public:
     Quadtree(const float theta_) : theta(theta_){ th_sq = theta * theta;};
     Quadtree(const Quadtree* other) = delete; // dont need to copy quadtrees
     ~Quadtree() = default;
-    void insert_body(Circle_Object& object);
+    void insert_body(const Circle_Object& object);
     void apply_force(Circle_Object& object);
     void update_mass_centers();
     void reset(Quad quad);
