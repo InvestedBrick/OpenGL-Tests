@@ -74,8 +74,8 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         xpos = 2*(xpos / WINDOW_WIDTH ) - 1;
         ypos = -2*(ypos / WINDOW_HEIGHT) + 1;
 
-        global_mouse_x = xpos;
-        global_mouse_y = ypos;
+        global_mouse_x = xpos - (cameraPosition.x - cameraPosition.x / 2);
+        global_mouse_y = ypos - (cameraPosition.y - cameraPosition.y / 2);
     }
     if(button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
         global_mouse_x = MOUSE_NOTHING_POS;
@@ -205,13 +205,14 @@ int main(int argc, char* argv[]) {
     glCall(glViewport(0,0,WINDOW_WIDTH,WINDOW_HEIGHT));
 
     std::cout << "Version: " << glGetString(GL_VERSION) << std::endl;
-    Quadtree qtree(0.4f);
+    Quadtree qtree(0.5f);
     const uint local_size = 64; // must be same as in compute shader
     const uint work_group_size = (N_CIRCLES + local_size - 1) / local_size;
     std::vector<Circle_Object> circs; circs.reserve(N_CIRCLES);
     std::vector<Circle_Texture> circle_textures; circle_textures.reserve(N_CIRCLES);
     float radius = 3.0f;   
 
+    const uint VERTEX_SIZE = ((CIRCLE_SEGMENTS + 1) * 3);
     for (size_t i = 0; i < N_CIRCLES; i++) {
         float pos_x,pos_y;
         
@@ -239,31 +240,36 @@ int main(int argc, char* argv[]) {
         float mass = mass_dist(rng); 
         vec2f random_velocity = vec2f(vel_dist(rng), vel_dist(rng));
         circs.emplace_back(pos_x,pos_y,mass,vec2f{ pos_y / 5 + random_velocity.x, -pos_x / 5 + random_velocity.y}); 
-        circle_textures.emplace_back(pos_x,pos_y,CIRCLE_SEGMENTS,i * ((CIRCLE_SEGMENTS + 1) * 2) * sizeof(float),mass * MASS_TO_RADIUS);
+        circle_textures.emplace_back(pos_x,pos_y,CIRCLE_SEGMENTS,i * VERTEX_SIZE * sizeof(float),mass * MASS_TO_RADIUS);
     }   
 
     
-    const uint circ_pos_size = N_CIRCLES * ((CIRCLE_SEGMENTS + 1) * 2);
+    const uint circ_pos_size = N_CIRCLES * VERTEX_SIZE ;// positions and one float for vel
     const uint circ_idx_size = N_CIRCLES * ((CIRCLE_SEGMENTS * 3));
 
-    std::vector<float> circ_positions; circ_positions.reserve(circ_pos_size);
+    std::vector<float> circ_metadata; circ_metadata.reserve(circ_pos_size);
     std::vector<uint> circ_indices; circ_indices.reserve(circ_idx_size);
 
     for (int i = 0; i < N_CIRCLES;i++){
         const std::vector<float>& positions = circle_textures[i].circ.get_positions();
-        circ_positions.insert(circ_positions.end(),positions.begin(),positions.end());
+        for(size_t i = 0; i < positions.size(); i += 2){
+            circ_metadata.emplace_back(positions[i]);
+            circ_metadata.emplace_back(positions[i + 1]);
+            circ_metadata.emplace_back(0.00f);//initial velocity
+        }
     }
     for (int i = 0; i < N_CIRCLES;i++){
         const std::vector<uint>& indices = circle_textures[i].circ.get_indices();
         for (int j = 0; j < (CIRCLE_SEGMENTS * 3); j++) {
-            circ_indices[(i * (CIRCLE_SEGMENTS * 3)) + j] = indices[j] + (i * ((CIRCLE_SEGMENTS + 1) ));
+            circ_indices[(i * (CIRCLE_SEGMENTS * 3)) + j] = indices[j] + (i * ((CIRCLE_SEGMENTS + 1)));
         }
     }
-    VertexBuffer circ_vb(circ_positions.data(),circ_pos_size * sizeof(float));
+    VertexBuffer circ_vb(circ_metadata.data(),circ_pos_size * sizeof(float));
     IndexBuffer circ_ibo(circ_indices.data(),circ_idx_size);
     VertexArray circ_vao;
     VertexBufferLayout circ_vbl;
     circ_vbl.push(GL_FLOAT,2);
+    circ_vbl.push(GL_FLOAT,1);
     circ_vao.add_buffer(circ_vb,circ_vbl);
     
     //Only works, becaouse circles are constant
@@ -361,14 +367,26 @@ int main(int argc, char* argv[]) {
                 }
                 if(global_mouse_x != MOUSE_NOTHING_POS){
                     vec2f dist = (vec2f(global_mouse_x,global_mouse_y) - circs[i].pos);
-                    float distance = sqrt(dist.x * dist.x + dist.y * dist.y);
-                    circs[i].vel += (vec2f(global_mouse_x,global_mouse_y) - circs[i].pos) / (circs[i].mass * 0.01f) * calculation_dt;
+                    circs[i].vel += (dist) / (circs[i].mass * 0.01f) * calculation_dt;
                     circs[i].vel = circs[i].vel /  1.2;
                 }
                 circs[i].pos += circs[i].vel * calculation_dt;
                 circle_textures[i].circ.set_pos(circs[i].pos.x,circs[i].pos.y);
+
+                const std::vector<float>& positions = circle_textures[i].circ.get_positions();
+                std::vector<float> interleaved_data;
+                interleaved_data.reserve(positions.size() + positions.size() / 2);
+
+                const float vel_abs = circs[i].vel.abs();
+                for (size_t j = 0; j < positions.size(); j += 2){
+                    interleaved_data.push_back(positions[j]);
+                    interleaved_data.push_back(positions[j + 1] );
+                    interleaved_data.push_back(vel_abs);
+                }
                 circ_vb.bind();
-                glCall(glBufferSubData(GL_ARRAY_BUFFER,circle_textures[i].vb_pos,circle_textures[i].circ.get_positions_size(),circle_textures[i].circ.get_positions().data()));
+
+                glCall(glBufferSubData(GL_ARRAY_BUFFER,circle_textures[i].vb_pos,interleaved_data.size() * sizeof(float),interleaved_data.data()));
+
                 circ_vb.unbind();
             }
         }
