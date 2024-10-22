@@ -5,10 +5,12 @@ void Quadtree::reset(Quad quad)
 {
     nodes.clear();
     parents.clear();
-    nodes.push_back({0,quad});
+    nodes.reserve(quad.n_objects * 2);
+    parents.reserve(quad.n_objects * 0.5);
+    nodes.emplace_back(0,quad);
 }
 
-void Quadtree::insert_body(Circle_Object& object)
+void Quadtree::insert_body(const Circle_Object& object)
 {
     uint node = 0; // root
     while(!this->nodes[node].is_leaf()){
@@ -51,7 +53,7 @@ void Quadtree::insert_body(Circle_Object& object)
 
     }
 }
-vec2f Quadtree::calc_force(Circle_Object &object, uint node)
+vec2f Quadtree::calc_force(const Circle_Object &object, uint node)
 {
     vec2f force{0.0f,0.0f};
     vec2f r_vector = nodes[node].center_of_mass - object.pos;
@@ -60,7 +62,7 @@ vec2f Quadtree::calc_force(Circle_Object &object, uint node)
 
     if (distance > 0.0){
         float force_mag = GRAVITATIONAL_CONSTANT * object.mass * nodes[node].mass / (distance * distance);
-        const float max_force = 0.01f;
+        const float max_force = 0.1f;
         if (force_mag > max_force){
             force_mag = max_force;
         }
@@ -72,13 +74,14 @@ vec2f Quadtree::calc_force(Circle_Object &object, uint node)
 
 Quad Quad::initialize(std::vector<Circle_Object> &objects)
 {
+    n_objects = objects.size();
     float min_x = std::numeric_limits<float>::max();
     float min_y = std::numeric_limits<float>::max();
     float max_x = std::numeric_limits<float>::lowest();
     float max_y = std::numeric_limits<float>::lowest();
 
     uint n_objects = objects.size();
-    for(const auto obj : objects){
+    for(const auto& obj : objects){
         min_x = std::min(min_x, obj.pos.x);
         min_y = std::min(min_y, obj.pos.y);
         max_x = std::max(max_x, obj.pos.x);
@@ -92,7 +95,7 @@ Quad Quad::initialize(std::vector<Circle_Object> &objects)
 }
 
 uint Quadtree::subdivide(uint node) {
-    parents.push_back(node);
+    parents.emplace_back(node);
     const uint children = nodes.size();
     nodes[node].children = children;
 
@@ -105,7 +108,7 @@ uint Quadtree::subdivide(uint node) {
 
     std::array<Quad,4> quads = nodes[node].quad.subdivide();
     for (uint i = 0; i < 4; i++){
-        nodes.push_back({nexts[i],quads[i]});
+        nodes.emplace_back(nexts[i],quads[i]);
     }
     return children;
 }
