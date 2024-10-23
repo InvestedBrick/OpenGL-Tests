@@ -60,12 +60,8 @@ vec2f Quadtree::calc_force(const Circle_Object &object, uint node)
 
     float distance = sqrt(r_vector.x * r_vector.x + r_vector.y * r_vector.y);
 
-    if (distance > 0.0){
+    if (distance > object.mass * MASS_TO_RADIUS + nodes[node].mass * MASS_TO_RADIUS){
         float force_mag = GRAVITATIONAL_CONSTANT * object.mass * nodes[node].mass / (distance * distance);
-        const float max_force = 0.1f;
-        if (force_mag > max_force){
-            force_mag = max_force;
-        }
         force = (r_vector / distance) * force_mag;
 
     }
@@ -131,20 +127,19 @@ void Quadtree::update_mass_centers()
         nodes[*r_i].center_of_mass /= nodes[*r_i].mass;
     }
 }
-void Quadtree::apply_force(Circle_Object &object)
+vec2f Quadtree::apply_force(Circle_Object &object)
 {
     if (nodes.empty()){
-        object.force = vec2f{0.0f,0.0f};
-        return;
+        return vec2f{0.0f,0.0f};
     }
 
     uint node = 0; // root 
+    vec2f force{0.0f,0.0f};
 
     while (true){
         Node n = nodes[node];
-
         if (n.is_leaf() || n.quad.size * n.quad.size < get_dist_squared(n.center_of_mass,object.pos) * th_sq){
-           object.force += calc_force(object,node);
+           force += calc_force(object,node);
             if (n.next == 0){
                 break;
             }
@@ -154,5 +149,6 @@ void Quadtree::apply_force(Circle_Object &object)
         }
     }
 
+    return force;
 
 }
