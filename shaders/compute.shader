@@ -9,7 +9,8 @@ struct CircleData {
     vec2 force;      
 
 };
-const float G = 0.001;
+const float G = 0.000001;
+const float MASS_TO_RADIUS = 0.0001;
 const float dt = 1.0 / 60.0;
 layout (std430, binding = 0) buffer DataBuffer {
     CircleData data[];
@@ -28,9 +29,8 @@ void main() {
             vec2 force = vec2(0.0,0.0);
             vec2 direction = data[i].pos - data[index].pos; 
             float dist = sqrt(direction.x * direction.x + direction.y * direction.y);
-            if (dist > 0) {
+            if (dist > data[index].mass * MASS_TO_RADIUS + data[i].mass * MASS_TO_RADIUS) {
                 float force_magnitude = (G * data[index].mass * data[i].mass) / (dist * dist);
-                force_magnitude = min(force_magnitude,0.01);
                 force = (direction / dist) * force_magnitude; 
             }
             data[index].force += force;
