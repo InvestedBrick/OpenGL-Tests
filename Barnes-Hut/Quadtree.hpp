@@ -5,7 +5,7 @@
 #include <array>
 #include "../Simple_API/defines.hpp"
 #include "../Circle_Object.hpp"
-struct Quad{
+struct alignas(8) Quad{
     Quad(vec2f center_,float size_){
         center = center_;
         size = size_;
@@ -14,6 +14,7 @@ struct Quad{
     vec2f center{0.0,0.0};
     float size;
     uint n_objects;
+
     Quad initialize(std::vector<Circle_Object> &objects);
     Quad into_quads(int quadrant) const {
         Quad result = *this;
@@ -44,17 +45,6 @@ private:
 
     float theta; 
     float th_sq;
-    
-    struct Node{
-        
-        Node(uint next_, Quad q) : next(next_), quad(q) {};
-        float mass = 0.f;
-        vec2f center_of_mass{0.0,0.0};
-        uint children = 0;
-        uint next;
-        bool is_leaf() const {return children == 0;}
-        Quad quad;
-    };
 
     uint subdivide(uint node);
     vec2f calc_force(const Circle_Object& object, uint node);
@@ -64,17 +54,24 @@ private:
         float y_sq = (b.y - a.y) * (b.y - a.y);
         return  x_sq + y_sq;
     }
-    bool should_approximate(const Circle_Object& object, uint node){
-        return nodes[node].quad.size * nodes[node].quad.size / get_dist_squared(object.pos,nodes[node].center_of_mass) < this->theta * this->theta;
-    }
     std::vector<uint> parents;
-    std::vector<Node> nodes;
 public:
+    struct alignas(8) Node{
+        
+        Node(uint next_, Quad q) : next(next_), quad(q) {};
+        vec2f center_of_mass{0.0,0.0};
+        float mass = 0.f;
+        uint children = 0;
+        uint next;
+        Quad quad;
+        bool is_leaf() const {return children == 0;}
+    };
+    std::vector<Node> nodes;
     Quadtree(const float theta_) : theta(theta_){ th_sq = theta * theta;};
     Quadtree(const Quadtree* other) = delete; // dont need to copy quadtrees
     ~Quadtree() = default;
     void insert_body(const Circle_Object& object);
-    void apply_force(Circle_Object& object);
+    vec2f apply_force(Circle_Object& object);
     void update_mass_centers();
     void reset(Quad quad);
 };
