@@ -7,7 +7,7 @@ void Quadtree::reset(Quad quad)
     parents.clear();
     nodes.reserve(quad.n_objects * 2);
     parents.reserve(quad.n_objects * 0.5);
-    nodes.emplace_back(0,quad);
+    nodes.push_back({0,quad});
 }
 
 void Quadtree::insert_body(const Circle_Object& object)
@@ -65,6 +65,8 @@ vec2f Quadtree::calc_force(const Circle_Object &object, uint node)
         force = (r_vector / distance) * force_mag;
 
     }
+    // I dont know how, I dont know why, but sometimes it just be like that
+    if (std::isnan(force.x)){force = vec2f{0.0f,0.0f};} 
     return force;
 }
 
@@ -148,7 +150,6 @@ vec2f Quadtree::apply_force(Circle_Object &object)
             node = n.children;
         }
     }
-
     return force;
 
 }
