@@ -30,6 +30,11 @@ struct vec2f{
         y *= other.y;
         return *this; 
     }
+    vec2f& operator*=(const float scalar) {
+        x *= scalar;
+        y *= scalar;
+        return *this; 
+    }
     vec2f& operator/=(const vec2f& other) {
         x /= other.x;
         y /= other.y;
