@@ -30,7 +30,9 @@ public:
         origin[1] = y;
         calc_positions();
     }
-
+    void set_radius(float r){
+        m_radius = r;
+    }
     const uint get_positions_size() const override {
         return positions_size;
     }
