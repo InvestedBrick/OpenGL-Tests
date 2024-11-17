@@ -26,7 +26,7 @@
 
 #include "Barnes-Hut/Quadtree.hpp"
 
-
+#define GPU_OLD
 
 
 struct Circle_Texture
@@ -36,24 +36,6 @@ struct Circle_Texture
     uint vb_pos;
 };
 
-
-vec2f compute_gravitational_force(Circle_Object& body1, const Circle_Object& body2) {
-    vec2f force = {0.0f, 0.0f};
-    vec2f r_vector = body2.pos - body1.pos;
-    //body1.padding_0 = body2.pos.x;
-    float distance = sqrt(r_vector.x * r_vector.x + r_vector.y * r_vector.y);
-    //body1.padding_0 = distance * distance;
-    if (distance > 0.0){
-        float force_magnitude = GRAVITATIONAL_CONSTANT * body1.mass * body2.mass / (distance * distance);
-        std::cout << force_magnitude << std::endl;
-        const float max_force = 0.01f; 
-        if (force_magnitude > max_force) {
-            force_magnitude = max_force;
-        }
-        force = (r_vector / distance) * force_magnitude;
-    }
-    return force;
-}
 void unbind_all() {
     glCall(glBindVertexArray(0));
     glCall(glUseProgram(0));
@@ -66,7 +48,7 @@ glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 0.0f);
 float zoomLevel = 1.0f;
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
-{
+{   
     if(button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) 
     {
         double xpos, ypos;
@@ -74,8 +56,8 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         xpos = 2*(xpos / WINDOW_WIDTH ) - 1;
         ypos = -2*(ypos / WINDOW_HEIGHT) + 1;
 
-        global_mouse_x = xpos - (cameraPosition.x - cameraPosition.x / 2);
-        global_mouse_y = ypos - (cameraPosition.y - cameraPosition.y / 2);
+        global_mouse_x = (xpos - (cameraPosition.x)) * (1 / zoomLevel); //- cameraPosition.x / 2);
+        global_mouse_y = (ypos - (cameraPosition.y)) * (1 / zoomLevel); //- cameraPosition.y / 2);
     }
     if(button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
         global_mouse_x = MOUSE_NOTHING_POS;
@@ -89,6 +71,7 @@ bool D_Pressed = false;
 bool Up_Pressed = false;
 bool Down_Pressed = false;
 bool paused = false;
+float vel_fac = 1.0f;
 void key_button_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     float cameraSpeed = 0.005f;
     
@@ -109,6 +92,18 @@ void key_button_callback(GLFWwindow* window, int key, int scancode, int action, 
         if (action == GLFW_PRESS) D_Pressed = true;
         else if (action == GLFW_RELEASE) D_Pressed = false;
     }
+    if (key == GLFW_KEY_V) {
+        if (action == GLFW_PRESS) vel_fac = 1.1f;
+        else if (action == GLFW_RELEASE) vel_fac = 1.0f;
+    }
+    if (key == GLFW_KEY_B) {
+        if (action == GLFW_PRESS) vel_fac = 0.9f;
+        else if (action == GLFW_RELEASE) vel_fac =  1.0f;
+    }
+    if (key == GLFW_KEY_N) {
+        if (action == GLFW_PRESS) vel_fac = -vel_fac;
+        else if (action == GLFW_RELEASE) vel_fac = 1.0f;
+    }
     if (key == GLFW_KEY_UP) {
         if (action == GLFW_PRESS) Up_Pressed = true;
         else if (action == GLFW_RELEASE) Up_Pressed = false;
@@ -120,6 +115,10 @@ void key_button_callback(GLFWwindow* window, int key, int scancode, int action, 
     if (key == GLFW_KEY_SPACE) {
         if (action == GLFW_PRESS && !paused) paused = true;
         else if (action == GLFW_PRESS && paused) paused = false;
+    }
+    if (key == GLFW_KEY_R && action == GLFW_PRESS){
+        zoomLevel = 1.0f;
+        cameraPosition = glm::vec3(0.0f,0.0f,0.0f);
     }
 }
 void updateCamera() {
@@ -166,8 +165,8 @@ int main(int argc, char* argv[]) {
     std::normal_distribution<float> dist0(0,0.4f);
     std::normal_distribution<float> dist1(2,0.3f);
     std::normal_distribution<float> dist2(-2,0.3f);
-
-    std::normal_distribution<float> mass_dist(50.f,10.f);
+    std::uniform_real_distribution<float> even_dist(-1.f,1.f);
+    std::normal_distribution<float> mass_dist(100.f,50.f);
     std::uniform_real_distribution<float> vel_dist(-0.03f, 0.03f);
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -210,12 +209,12 @@ int main(int argc, char* argv[]) {
     const uint work_group_size = (N_CIRCLES + local_size - 1) / local_size;
     std::vector<Circle_Object> circs; circs.reserve(N_CIRCLES);
     std::vector<Circle_Texture> circle_textures; circle_textures.reserve(N_CIRCLES);
-    float radius = 3.0f;   
+    float radius = 2.0f;   
 
     const uint VERTEX_SIZE = ((CIRCLE_SEGMENTS + 1) * 3);
     for (size_t i = 0; i < N_CIRCLES; i++) {
         float pos_x,pos_y;
-        
+        /*
         if (i < N_CIRCLES / 3){
             float angle = (2.0f * M_PI * i) / (N_CIRCLES / 3); 
             pos_x = radius * cos(angle) + vel_dist(rng) * 10; // just using velociy distribution to not have to create a new dist with similar values  
@@ -224,24 +223,35 @@ int main(int argc, char* argv[]) {
             pos_x = dist0(rng);
             pos_y = dist0(rng);
         }
+        */
+       
+        if (i <= N_CIRCLES / 2){
+            pos_x = dist0(rng) + 1.5f;
+            pos_y = dist0(rng) + 1.5f;
+        } else{
+            pos_x = dist0(rng) - 1.5f;
+            pos_y = dist0(rng) - 1.5f;
+        }
         
-        /*
+       /*
         if (i < N_CIRCLES / 2){
-            pos_x = dist1(rng) ;
-            pos_y = dist1(rng) ;
-        } else if(i > N_CIRCLES / 4 && i < N_CIRCLES / 1.6){
-            pos_x = dist2(rng);
-            pos_y = dist2(rng);
+            pos_x = even_dist(rng) * 4;
+            pos_y = 0;
+
         }else{
-            pos_x = dist0(rng);
-            pos_y = dist0(rng);
+            pos_y = even_dist(rng) * 4;
+            pos_x = 0;
         }
         */
+        
+        
+       
         float mass = mass_dist(rng); 
         vec2f random_velocity = vec2f(vel_dist(rng), vel_dist(rng));
         circs.emplace_back(pos_x,pos_y,mass,vec2f{ pos_y / 5 + random_velocity.x, -pos_x / 5 + random_velocity.y}); 
         circle_textures.emplace_back(pos_x,pos_y,CIRCLE_SEGMENTS,i * VERTEX_SIZE * sizeof(float),mass * MASS_TO_RADIUS);
     }   
+
 
     
     const uint circ_pos_size = N_CIRCLES * VERTEX_SIZE ;// positions and one float for vel
@@ -275,13 +285,17 @@ int main(int argc, char* argv[]) {
     //Only works, becaouse circles are constant
     ShaderStorageBuffer ssbo(circs.data(),circs.size() * sizeof(Circle_Object));
     ssbo.bind_to(0);
-    
+
     GlProgram prog({Shader("./shaders/vertex.shader", GL_VERTEX_SHADER).get_shader_ID(),
                     Shader("./shaders/fragment.shader", GL_FRAGMENT_SHADER).get_shader_ID()});
     prog.bind();
     prog.delete_shaders();
     
+    #ifdef GPU_OLD
     GlProgram compute_prog({Shader("./shaders/compute.shader",GL_COMPUTE_SHADER).get_shader_ID()});
+    #else
+        GlProgram compute_prog({Shader("./shaders/compute2.shader",GL_COMPUTE_SHADER).get_shader_ID()});
+    #endif
     compute_prog.bind();
     compute_prog.delete_shaders();
 
@@ -324,26 +338,9 @@ int main(int argc, char* argv[]) {
         if (!paused){
             if (state == GPU_STATE){
                 compute_prog.bind();
-                ssbo.update_data(circs.data(),circs.size() * sizeof(Circle_Object));
-                glCall(glDispatchCompute(work_group_size, 1, 1));  
-                glCall(glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)); 
-                Circle_Object* data = (Circle_Object*)glMapBuffer(GL_SHADER_STORAGE_BUFFER,GL_READ_ONLY);
-                if (data){
-                    for (uint i = 0; i < N_CIRCLES;++i){
-                        circs[i].vel = data[i].vel;
-                    }
-                    glCall(glUnmapBuffer(GL_SHADER_STORAGE_BUFFER));
-                }
-            }
-            else if (state == CPU_STATE){
-                //for (int i = 0; i < N_CIRCLES; ++i) {
-                //    for (int j = 0; j < N_CIRCLES; ++j) {
-                //        if (i != j) {
-                //            circs[i].force += compute_gravitational_force(circs[i], circs[j]);
-                //        }
-                //    }
-                //}
+                
 
+                #ifndef GPU_OLD
                 //build the quadtree
                 Quad quad;
                 quad = quad.initialize(circs);
@@ -352,14 +349,48 @@ int main(int argc, char* argv[]) {
                     qtree.insert_body(circ);
                 }
                 qtree.update_mass_centers();
-        
-                for (auto& circ : circs){
-                    qtree.apply_force(circ);
+
+                ShaderStorageBuffer ssbo_nodes(qtree.nodes.data(), qtree.nodes.size() * sizeof(Quadtree::Node));
+                ssbo_nodes.bind_to(1);
+                #endif
+                ssbo.update_data(circs.data(),circs.size() * sizeof(Circle_Object));
+                glCall(glDispatchCompute(work_group_size, 1, 1));  
+                glCall(glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)); 
+
+                Circle_Object* data = (Circle_Object*)glMapBuffer(GL_SHADER_STORAGE_BUFFER,GL_READ_ONLY);
+                if (data){
+                    for (uint i = 0; i < N_CIRCLES;++i){
+                        circs[i].vel = data[i].vel;
+                        circs[i].mass = data[i].mass;
+                        circle_textures[i].circ.set_radius(circs[i].mass * MASS_TO_RADIUS);
+                    }
+                    glCall(glUnmapBuffer(GL_SHADER_STORAGE_BUFFER));
                 }
+            }
+            else if (state == CPU_STATE){
+                //build the quadtree
+                Quad quad;
+                quad = quad.initialize(circs);
+                qtree.reset(quad);
+
+                for (auto& circ : circs){
+                    qtree.insert_body(circ);
+                }
+                
+                qtree.update_mass_centers();
+                /*
+                for (auto& circ : circs){
+                    circ.force = qtree.apply_force(circ);
+                }*/
+                for (int i = 0; i < N_CIRCLES; ++i) {
+                    circs[i].force = qtree.apply_force(circs[i]);
+                }
+
 
             }
             
             for (int i = 0; i < N_CIRCLES; ++i) {
+                circs[i].vel *= vel_fac;
                 if (state != GPU_STATE){
                     circs[i].vel += (circs[i].force / circs[i].mass) * calculation_dt;
                     circs[i].force.x = 0;
@@ -368,7 +399,7 @@ int main(int argc, char* argv[]) {
                 if(global_mouse_x != MOUSE_NOTHING_POS){
                     vec2f dist = (vec2f(global_mouse_x,global_mouse_y) - circs[i].pos);
                     circs[i].vel += (dist) / (circs[i].mass * 0.01f) * calculation_dt;
-                    circs[i].vel = circs[i].vel /  1.2;
+                    circs[i].vel = circs[i].vel /  1.1f;
                 }
                 circs[i].pos += circs[i].vel * calculation_dt;
                 circle_textures[i].circ.set_pos(circs[i].pos.x,circs[i].pos.y);
