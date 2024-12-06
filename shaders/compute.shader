@@ -9,7 +9,7 @@ struct CircleData {
     vec2 force;      
 };
 
-const float G = 0.00005;
+const float G = 0.00002;
 const float MASS_TO_RADIUS = 0.0001; // Converts mass to radius for collision detection
 const float dt = 1.0 / 60.0;
 layout (std430, binding = 0) buffer DataBuffer {
@@ -36,7 +36,7 @@ void main() {
             // Gravitational force calculation
             if (dist > combined_radius) { // Apply gravity only if not colliding
                 float force_magnitude = (G * data[index].mass * data[i].mass) / (dist * dist);
-                force_magnitude = min(force_magnitude, 0.5); // Limit force magnitude
+                force_magnitude = min(force_magnitude, 0.01); // Limit force magnitude
                 vec2 force = (direction / dist) * force_magnitude;
                 data[index].force += force;
             } 
@@ -46,8 +46,9 @@ void main() {
                 // Collision normal
                 vec2 collision_normal = normalize(direction);
 
-                data[index].vel -= collision_normal * 0.01;
+                data[index].vel -= collision_normal * 0.04;
             }
+            
         }
     }
 
