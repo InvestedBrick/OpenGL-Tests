@@ -214,6 +214,8 @@ int main(int argc, char* argv[]) {
     const uint VERTEX_SIZE = ((CIRCLE_SEGMENTS + 1) * 3);
     for (size_t i = 0; i < N_CIRCLES; i++) {
         float pos_x,pos_y;
+        float mass = mass_dist(rng); 
+        float radius = MASS_TO_RADIUS * mass;
         /*
         if (i < N_CIRCLES / 3){
             float angle = (2.0f * M_PI * i) / (N_CIRCLES / 3); 
@@ -224,7 +226,7 @@ int main(int argc, char* argv[]) {
             pos_y = dist0(rng);
         }
         */
-       
+        /*
         if (i <= N_CIRCLES / 2){
             pos_x = dist0(rng) + 1.5f;
             pos_y = dist0(rng) + 1.5f;
@@ -232,24 +234,22 @@ int main(int argc, char* argv[]) {
             pos_x = dist0(rng) - 1.5f;
             pos_y = dist0(rng) - 1.5f;
         }
+        */
         
-       /*
         if (i < N_CIRCLES / 2){
             pos_x = even_dist(rng) * 4;
-            pos_y = 0;
+            pos_y = even_dist(rng) * 4;
 
         }else{
             pos_y = even_dist(rng) * 4;
-            pos_x = 0;
+            pos_x = even_dist(rng) * 4;
         }
-        */
         
         
        
-        float mass = mass_dist(rng); 
         vec2f random_velocity = vec2f(vel_dist(rng), vel_dist(rng));
-        circs.emplace_back(pos_x,pos_y,mass,vec2f{ pos_y / 5 + random_velocity.x, -pos_x / 5 + random_velocity.y}); 
-        circle_textures.emplace_back(pos_x,pos_y,CIRCLE_SEGMENTS,i * VERTEX_SIZE * sizeof(float),mass * MASS_TO_RADIUS);
+        circs.emplace_back(pos_x,pos_y,mass,vec2f{ pos_y / 3 + random_velocity.x, -pos_x / 3 + random_velocity.y}); 
+        circle_textures.emplace_back(pos_x,pos_y,CIRCLE_SEGMENTS,i * VERTEX_SIZE * sizeof(float),radius);
     }   
 
 
@@ -362,7 +362,7 @@ int main(int argc, char* argv[]) {
                     for (uint i = 0; i < N_CIRCLES;++i){
                         circs[i].vel = data[i].vel;
                         circs[i].mass = data[i].mass;
-                        circle_textures[i].circ.set_radius(circs[i].mass * MASS_TO_RADIUS);
+                        //circle_textures[i].circ.set_radius(circs[i].mass * MASS_TO_RADIUS);
                     }
                     glCall(glUnmapBuffer(GL_SHADER_STORAGE_BUFFER));
                 }
