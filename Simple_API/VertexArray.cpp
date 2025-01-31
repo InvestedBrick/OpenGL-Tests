@@ -27,9 +27,7 @@ void VertexArray::add_buffer(const VertexBuffer &vb, const VertexBufferLayout &v
 }
 void VertexArray::bind() const
 {
-    //std::cout << m_Renderer_ID << std::endl;
     glCall(glBindVertexArray(m_Renderer_ID));
-    //std::cout << "bound " << m_Renderer_ID << std::endl;
 }
 
 void VertexArray::unbind() const 
