@@ -28,7 +28,9 @@
 
 #define GPU_OLD
 
-
+struct Vertex {
+    vec2f pos;
+};
 struct Circle_Texture
 {
     Circle_Texture(const float x, const float y,uint n_segments,const uint vb_position,const float radius = 1.f) : circ(x,y,n_segments,radius),vb_pos(vb_position){}
@@ -145,7 +147,7 @@ void updateCamera() {
     }
 }
 int main(int argc, char* argv[]) {
-    int N_CIRCLES = 2000;
+    uint N_CIRCLES = 2000;
     bool state;
     if (argc >= 2 && argc <= 3){
         if(std::string(argv[1]) == "-cpu"){
@@ -166,8 +168,8 @@ int main(int argc, char* argv[]) {
     std::normal_distribution<float> dist1(2,0.3f);
     std::normal_distribution<float> dist2(-2,0.3f);
     std::uniform_real_distribution<float> even_dist(-1.f,1.f);
-    std::normal_distribution<float> mass_dist(100.f,50.f);
-    std::uniform_real_distribution<float> vel_dist(-0.03f, 0.03f);
+    std::normal_distribution<float> mass_dist(200.f,50.f);
+    std::uniform_real_distribution<float> vel_dist(-0.008f, 0.008f);
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -211,22 +213,12 @@ int main(int argc, char* argv[]) {
     std::vector<Circle_Texture> circle_textures; circle_textures.reserve(N_CIRCLES);
     float radius = 2.0f;   
 
-    const uint VERTEX_SIZE = ((CIRCLE_SEGMENTS + 1) * 3);
+    const uint VERTEX_SIZE = ((CIRCLE_SEGMENTS + 1) * 2);
     for (size_t i = 0; i < N_CIRCLES; i++) {
         float pos_x,pos_y;
         float mass = mass_dist(rng); 
         float radius = MASS_TO_RADIUS * mass;
-        /*
-        if (i < N_CIRCLES / 3){
-            float angle = (2.0f * M_PI * i) / (N_CIRCLES / 3); 
-            pos_x = radius * cos(angle) + vel_dist(rng) * 10; // just using velociy distribution to not have to create a new dist with similar values  
-            pos_y = radius * sin(angle) + vel_dist(rng) * 10;  
-        }else{
-            pos_x = dist0(rng);
-            pos_y = dist0(rng);
-        }
-        */
-        /*
+        
         if (i <= N_CIRCLES / 2){
             pos_x = dist0(rng) + 1.5f;
             pos_y = dist0(rng) + 1.5f;
@@ -234,57 +226,48 @@ int main(int argc, char* argv[]) {
             pos_x = dist0(rng) - 1.5f;
             pos_y = dist0(rng) - 1.5f;
         }
-        */
         
-        if (i < N_CIRCLES / 2){
-            pos_x = even_dist(rng) * 4;
-            pos_y = even_dist(rng) * 4;
-
-        }else{
-            pos_y = even_dist(rng) * 4;
-            pos_x = even_dist(rng) * 4;
-        }
-        
-        
-       
         vec2f random_velocity = vec2f(vel_dist(rng), vel_dist(rng));
-        circs.emplace_back(pos_x,pos_y,mass,vec2f{ pos_y / 3 + random_velocity.x, -pos_x / 3 + random_velocity.y}); 
+        circs.emplace_back(pos_x,pos_y,mass,vec2f{ pos_y / 3 + random_velocity.x, -pos_x / 3 +  random_velocity.y}); 
         circle_textures.emplace_back(pos_x,pos_y,CIRCLE_SEGMENTS,i * VERTEX_SIZE * sizeof(float),radius);
     }   
 
 
-    
-    const uint circ_pos_size = N_CIRCLES * VERTEX_SIZE ;// positions and one float for vel
-    const uint circ_idx_size = N_CIRCLES * ((CIRCLE_SEGMENTS * 3));
+   
 
-    std::vector<float> circ_metadata; circ_metadata.reserve(circ_pos_size);
-    std::vector<uint> circ_indices; circ_indices.reserve(circ_idx_size);
+    const uint vertices_per_circ = CIRCLE_SEGMENTS + 1; // one for centre and one to close the triangle fan
+    const uint n_vertices =  N_CIRCLES * (vertices_per_circ);
+    const uint n_indices = N_CIRCLES * 3 * CIRCLE_SEGMENTS;
 
-    for (int i = 0; i < N_CIRCLES;i++){
-        const std::vector<float>& positions = circle_textures[i].circ.get_positions();
-        for(size_t i = 0; i < positions.size(); i += 2){
-            circ_metadata.emplace_back(positions[i]);
-            circ_metadata.emplace_back(positions[i + 1]);
-            circ_metadata.emplace_back(0.00f);//initial velocity
+    std::vector<uint> circ_indices; circ_indices.reserve(n_indices);
+    for (uint circleIndex = 0; circleIndex < N_CIRCLES; ++circleIndex) {
+        uint circleBaseIndex = circleIndex * (CIRCLE_SEGMENTS + 1);
+
+        // Indices for a single circle (GL_TRIANGLES)
+        for (uint i = 0; i < CIRCLE_SEGMENTS; ++i) {
+            uint next = (i + 1) % CIRCLE_SEGMENTS;
+            
+            // Triangles are formed by (center, current point, next point)
+            circ_indices.push_back(circleBaseIndex); 
+            circ_indices.push_back(circleBaseIndex + 1 + i); 
+            circ_indices.push_back(circleBaseIndex + 1 + next); 
         }
     }
-    for (int i = 0; i < N_CIRCLES;i++){
-        const std::vector<uint>& indices = circle_textures[i].circ.get_indices();
-        for (int j = 0; j < (CIRCLE_SEGMENTS * 3); j++) {
-            circ_indices[(i * (CIRCLE_SEGMENTS * 3)) + j] = indices[j] + (i * ((CIRCLE_SEGMENTS + 1)));
-        }
-    }
-    VertexBuffer circ_vb(circ_metadata.data(),circ_pos_size * sizeof(float));
-    IndexBuffer circ_ibo(circ_indices.data(),circ_idx_size);
+
+
+    VertexBuffer circ_vb(nullptr,0);
+    IndexBuffer circ_ibo(circ_indices.data(),n_indices);
     VertexArray circ_vao;
     VertexBufferLayout circ_vbl;
-    circ_vbl.push(GL_FLOAT,2);
-    circ_vbl.push(GL_FLOAT,1);
+    //circ_vbl.push(GL_UNSIGNED_INT,1);
     circ_vao.add_buffer(circ_vb,circ_vbl);
-    
-    //Only works, becaouse circles are constant
+
     ShaderStorageBuffer ssbo(circs.data(),circs.size() * sizeof(Circle_Object));
     ssbo.bind_to(0);
+
+    ShaderStorageBuffer vertex_ssbo(nullptr,n_vertices * sizeof(glm::vec2));
+    vertex_ssbo.bind_to(1);
+
 
     GlProgram prog({Shader("./shaders/vertex.shader", GL_VERTEX_SHADER).get_shader_ID(),
                     Shader("./shaders/fragment.shader", GL_FRAGMENT_SHADER).get_shader_ID()});
@@ -308,6 +291,7 @@ int main(int argc, char* argv[]) {
 
     glCall(glMatrixMode(GL_PROJECTION));
 
+    bool first_pass = true;
     paused = true;
     unbind_all();
     const float calculation_dt = 1.f / 60.f; // aim for 60 frames
@@ -319,7 +303,7 @@ int main(int argc, char* argv[]) {
         frame_count++; 
         if (frame_count >= update_interval) {
             
-            std::string title = "Hello OpenGL at: " + std::to_string((1/dt)) + " FPS"; 
+            std::string title = "Hello OpenGL at: " + std::to_string((1/dt)) + " FPS" + (paused ? " (paused)":  ""); 
             glfwSetWindowTitle(window, title.c_str());
             frame_count = 0;  
         }
@@ -334,11 +318,15 @@ int main(int argc, char* argv[]) {
         prog.bind();
         prog.set_uniform_mat4f("u_projection",1,GL_FALSE,glm::value_ptr(projection));
         prog.set_uniform_mat4f("u_view",1,GL_FALSE,glm::value_ptr(view));
+        prog.set_uniform_1ui("vertices_per_circ",vertices_per_circ);
 
-        if (!paused){
+        if (!paused || first_pass){
             if (state == GPU_STATE){
                 compute_prog.bind();
-                
+                //compute_prog.set_uniform_1ui("data_len",N_CIRCLES);
+                compute_prog.set_uniform_1ui("vertices_per_circ",vertices_per_circ);
+                glCall(glDispatchCompute(work_group_size, 1, 1));  
+                glCall(glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)); 
 
                 #ifndef GPU_OLD
                 //build the quadtree
@@ -353,19 +341,6 @@ int main(int argc, char* argv[]) {
                 ShaderStorageBuffer ssbo_nodes(qtree.nodes.data(), qtree.nodes.size() * sizeof(Quadtree::Node));
                 ssbo_nodes.bind_to(1);
                 #endif
-                ssbo.update_data(circs.data(),circs.size() * sizeof(Circle_Object));
-                glCall(glDispatchCompute(work_group_size, 1, 1));  
-                glCall(glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)); 
-
-                Circle_Object* data = (Circle_Object*)glMapBuffer(GL_SHADER_STORAGE_BUFFER,GL_READ_ONLY);
-                if (data){
-                    for (uint i = 0; i < N_CIRCLES;++i){
-                        circs[i].vel = data[i].vel;
-                        circs[i].mass = data[i].mass;
-                        //circle_textures[i].circ.set_radius(circs[i].mass * MASS_TO_RADIUS);
-                    }
-                    glCall(glUnmapBuffer(GL_SHADER_STORAGE_BUFFER));
-                }
             }
             else if (state == CPU_STATE){
                 //build the quadtree
@@ -388,46 +363,48 @@ int main(int argc, char* argv[]) {
 
 
             }
-            
-            for (int i = 0; i < N_CIRCLES; ++i) {
-                circs[i].vel *= vel_fac;
-                if (state != GPU_STATE){
-                    circs[i].vel += (circs[i].force / circs[i].mass) * calculation_dt;
-                    circs[i].force.x = 0;
-                    circs[i].force.y = 0;
+            if (state != GPU_STATE){
+
+                for (int i = 0; i < N_CIRCLES; ++i) {
+                    circs[i].vel *= vel_fac;
+                    if (state != GPU_STATE){
+                        circs[i].vel += (circs[i].force / circs[i].mass) * calculation_dt;
+                        circs[i].force.x = 0;
+                        circs[i].force.y = 0;
+                    }
+                    if(global_mouse_x != MOUSE_NOTHING_POS){
+                        vec2f dist = (vec2f(global_mouse_x,global_mouse_y) - circs[i].pos);
+                        circs[i].vel += (dist) / (circs[i].mass * 0.01f) * calculation_dt;
+                        circs[i].vel = circs[i].vel /  1.1f;
+                    }
+                    circs[i].pos += circs[i].vel * calculation_dt;
+                    circle_textures[i].circ.set_pos(circs[i].pos.x,circs[i].pos.y);
+
+                    const std::vector<float>& positions = circle_textures[i].circ.get_positions();
+                    std::vector<float> interleaved_data;
+                    interleaved_data.reserve(positions.size() + positions.size() / 2);
+
+                    const float vel_abs = circs[i].vel.abs();
+                    for (size_t j = 0; j < positions.size(); j += 2){
+                        interleaved_data.push_back(positions[j]);
+                        interleaved_data.push_back(positions[j + 1] );
+                        interleaved_data.push_back(vel_abs);
+                    }
+                    //circ_vb.bind();
+
+                    //glCall(glBufferSubData(GL_ARRAY_BUFFER,circle_textures[i].vb_pos,interleaved_data.size() * sizeof(float),interleaved_data.data()));
+
+                    //circ_vb.unbind();
                 }
-                if(global_mouse_x != MOUSE_NOTHING_POS){
-                    vec2f dist = (vec2f(global_mouse_x,global_mouse_y) - circs[i].pos);
-                    circs[i].vel += (dist) / (circs[i].mass * 0.01f) * calculation_dt;
-                    circs[i].vel = circs[i].vel /  1.1f;
-                }
-                circs[i].pos += circs[i].vel * calculation_dt;
-                circle_textures[i].circ.set_pos(circs[i].pos.x,circs[i].pos.y);
-
-                const std::vector<float>& positions = circle_textures[i].circ.get_positions();
-                std::vector<float> interleaved_data;
-                interleaved_data.reserve(positions.size() + positions.size() / 2);
-
-                const float vel_abs = circs[i].vel.abs();
-                for (size_t j = 0; j < positions.size(); j += 2){
-                    interleaved_data.push_back(positions[j]);
-                    interleaved_data.push_back(positions[j + 1] );
-                    interleaved_data.push_back(vel_abs);
-                }
-                circ_vb.bind();
-
-                glCall(glBufferSubData(GL_ARRAY_BUFFER,circle_textures[i].vb_pos,interleaved_data.size() * sizeof(float),interleaved_data.data()));
-
-                circ_vb.unbind();
             }
         }
         /* Render here */
         renderer.draw(circ_vao,circ_ibo,prog,GL_TRIANGLES);
-
         /* Swap front and back buffers */
         glCall(glfwSwapBuffers(window));
         /* Poll for and process events */
         glCall(glfwPollEvents());
+        first_pass = false;
     }
 
     glfwTerminate();
