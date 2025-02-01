@@ -28,16 +28,18 @@ layout (std430, binding = 1) buffer VertexBuffer {
     Vertex vertices[];
 };
 
+layout (std430, binding = 2) buffer CosSinBuffer{
+    vec2 cos_sin_precalcs[];
+};
+
 void calc_positions(uint idx) {
-    vertices[idx * vertices_per_circ].pos = vec2(data[idx].pos);
+    uint base_idx = idx * vertices_per_circ;
+    vertices[base_idx].pos = vec2(data[idx].pos);
     uint pos_idx = 1;
-    float theta;
     float rad = data[idx].mass * MASS_TO_RADIUS;
     for (int i = 0; i < vertices_per_circ - 1; ++i) {
-        theta = (TWO_PI * float(i)) / float(vertices_per_circ - 1);
-        float x = rad * cos(theta);
-        float y = rad * sin(theta);
-        vertices[idx * vertices_per_circ + pos_idx].pos = vec2(data[idx].pos.x + x, data[idx].pos.y + y);
+        vec2 xy = rad * cos_sin_precalcs[i];
+        vertices[base_idx + pos_idx].pos = data[idx].pos + xy;
         pos_idx++;
     }
 }
