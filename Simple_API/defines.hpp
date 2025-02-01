@@ -4,8 +4,8 @@
 
 #define WINDOW_HEIGHT 1080
 #define WINDOW_WIDTH 1080
-#define GRAVITATIONAL_CONSTANT 0.000001
-#define MASS_TO_RADIUS 0.0001
+#define GRAVITATIONAL_CONSTANT 0.0015 // should be same as in compute.shader
+#define MASS_TO_RADIUS 0.0001 // should be same as in compute.shader
 #define MOUSE_NOTHING_POS -10
 #define VSYNC 1
 #define CPU_STATE 1
