@@ -66,6 +66,43 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         global_mouse_y = MOUSE_NOTHING_POS;
     }
 }
+
+std::pair<float, float> generateRandomPoint(float cx, float cy, float r) {
+    // Generate a random angle between 0 and 2π
+    float angle = (rand() / (float)RAND_MAX) * 2 * M_PI;
+
+    // Generate a random radius between 0 and r, but we want a uniform distribution across the area,
+    // so we take the square root of a random number to ensure uniformity in 2D space.
+    float radius = sqrt((rand() / (float)RAND_MAX)) * r;
+
+    // Convert to Cartesian coordinates
+    float x = cx + radius * cos(angle);
+    float y = cy + radius * sin(angle);
+
+    return {x, y};
+}
+
+std::vector<vec2f> gen_spiral(uint n_points,float a,float b,float spacing, float phase,std::mt19937 rng) {
+    std::vector<vec2f> points{};
+    float theta = 0.0;
+
+    std::uniform_real_distribution<float> noiseDist(-0.08, 0.08);
+
+    for (int i = 0; i < n_points; i++) {
+        float r = spacing * theta;
+        float x = a + r * cos(theta + phase);
+        float y = b + r * sin(theta + phase);
+
+        float noiseX = noiseDist(rng);
+        float noiseY = noiseDist(rng);
+        points.push_back({x + noiseX, y + noiseY});
+
+        theta += 0.03; // Adjust for density of the spiral
+    }
+
+    return points;
+}
+
 bool W_Pressed = false;
 bool A_Pressed = false;
 bool S_Pressed = false;
@@ -168,9 +205,10 @@ int main(int argc, char* argv[]) {
     std::normal_distribution<float> dist1(2,0.3f);
     std::normal_distribution<float> dist2(-2,0.3f);
     std::uniform_real_distribution<float> even_dist(-1.f,1.f);
-    std::normal_distribution<float> mass_dist(200.f,50.f);
+    std::normal_distribution<float> mass_dist(200.f,60.f);
     std::uniform_real_distribution<float> vel_dist(-0.008f, 0.008f);
-
+    std::uniform_real_distribution<float> angleDist(0, 2 * M_PI);
+    std::uniform_real_distribution<float> radiusDist(0, 1.f);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -211,15 +249,24 @@ int main(int argc, char* argv[]) {
     const uint work_group_size = (N_CIRCLES + local_size - 1) / local_size;
     std::vector<Circle_Object> circs; circs.reserve(N_CIRCLES);
     std::vector<Circle_Texture> circle_textures; circle_textures.reserve(N_CIRCLES);
-    float radius = 2.0f;   
 
     const uint VERTEX_SIZE = ((CIRCLE_SEGMENTS + 1) * 2);
-    for (size_t i = 0; i < N_CIRCLES; i++) {
+    float spacing = 0.1;
+    // I dont know why this is not working
+    std::vector<vec2f> points_1 = gen_spiral(N_CIRCLES / 4, 0.0,0.0 ,spacing,0.0,rng);
+    std::vector<vec2f> points_2 = gen_spiral(N_CIRCLES / 4, 0.0,0.0 ,spacing,5,rng);
+    std::vector<vec2f> points_3 = gen_spiral(N_CIRCLES / 4, 2.0,2.0 ,spacing,0.0,rng);
+    std::vector<vec2f> points_4 = gen_spiral(N_CIRCLES / 4, 2.0,2.0 ,spacing,5,rng);
+
+    for (size_t i = 0; i < N_CIRCLES ; i++) {
         float pos_x,pos_y;
         float mass = mass_dist(rng); 
         float radius = MASS_TO_RADIUS * mass;
+        vec2f vel {0.0,0.0};
+        /*
+        //std::pair<float,float> p;
         
-        if (i <= N_CIRCLES / 2){
+        if (i < N_CIRCLES / 2){
             pos_x = dist0(rng) + 1.5f;
             pos_y = dist0(rng) + 1.5f;
         } else{
@@ -227,15 +274,40 @@ int main(int argc, char* argv[]) {
             pos_y = dist0(rng) - 1.5f;
         }
         
-        vec2f random_velocity = vec2f(vel_dist(rng), vel_dist(rng));
-        circs.emplace_back(pos_x,pos_y,mass,vec2f{ pos_y / 3 + random_velocity.x, -pos_x / 3 +  random_velocity.y}); 
+
+        //pos_x = p.first;
+        //pos_y = p.second;
+        */
+        if (i < N_CIRCLES / 2){
+            if (i < N_CIRCLES / 4){
+                pos_x = points_1[i].x;
+                pos_y = points_1[i].y;
+            }else{
+                pos_x = points_2[i].x;
+                pos_y = points_2[i].y;
+            }   
+            vel = vec2f(-pos_y,pos_x) / 6;
+
+        } else{
+            if (i < N_CIRCLES * 0.75){
+                pos_x = points_3[i].x;
+                pos_y = points_3[i].y;
+            }else{
+                pos_x = points_4[i].x;
+                pos_y = points_4[i].y;                
+            }
+            vel = vec2f(-pos_y,pos_x) / 3;
+        }
+        
+        
+        //vec2f random_velocity = vec2f(vel_dist(rng), vel_dist(rng));
+        circs.emplace_back(pos_x,pos_y,mass,vel); 
         circle_textures.emplace_back(pos_x,pos_y,CIRCLE_SEGMENTS,i * VERTEX_SIZE * sizeof(float),radius);
     }   
 
-
    
 
-    const uint vertices_per_circ = CIRCLE_SEGMENTS + 1; // one for centre and one to close the triangle fan
+    const uint vertices_per_circ = CIRCLE_SEGMENTS + 1; 
     const uint n_vertices =  N_CIRCLES * (vertices_per_circ);
     const uint n_indices = N_CIRCLES * 3 * CIRCLE_SEGMENTS;
 
@@ -268,6 +340,17 @@ int main(int argc, char* argv[]) {
     ShaderStorageBuffer vertex_ssbo(nullptr,n_vertices * sizeof(glm::vec2));
     vertex_ssbo.bind_to(1);
 
+
+    // precalculate sine and cosine to spare computation later
+    std::vector<float> cosine_sine_table; cosine_sine_table.reserve(vertices_per_circ * 2); // 2 floats ver vertex
+    for (int i = 0; i < vertices_per_circ - 1; ++i) {
+        float theta = (TWO_PI * float(i)) / float(vertices_per_circ - 1);
+        cosine_sine_table.push_back(cosf(theta));
+        cosine_sine_table.push_back(sinf(theta));
+    }
+
+    ShaderStorageBuffer cos_sin_ssbo(cosine_sine_table.data(),vertices_per_circ * sizeof(glm::vec2));
+    cos_sin_ssbo.bind_to(2);
 
     GlProgram prog({Shader("./shaders/vertex.shader", GL_VERTEX_SHADER).get_shader_ID(),
                     Shader("./shaders/fragment.shader", GL_FRAGMENT_SHADER).get_shader_ID()});
