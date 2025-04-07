@@ -21,6 +21,8 @@
 #include "Simple_API/Shapes/Rectangle.hpp"
 #include "Simple_API/Shapes/Circle.hpp"
 
+#include "Simple_API/Camera.hpp"
+
 #include "vec2.hpp"
 #include "Circle_Object.hpp" // I need the struct template for quadtrees too
 
@@ -46,8 +48,9 @@ void unbind_all() {
 }
 float global_mouse_x = MOUSE_NOTHING_POS;
 float global_mouse_y = MOUSE_NOTHING_POS;
-glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 0.0f);
-float zoomLevel = 1.0f;
+Camera cam;
+//glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 0.0f);
+//float zoomLevel = 1.0f;
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {   
@@ -58,8 +61,8 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         xpos = 2*(xpos / WINDOW_WIDTH ) - 1;
         ypos = -2*(ypos / WINDOW_HEIGHT) + 1;
 
-        global_mouse_x = (xpos - (cameraPosition.x)) * (1 / zoomLevel); //- cameraPosition.x / 2);
-        global_mouse_y = (ypos - (cameraPosition.y)) * (1 / zoomLevel); //- cameraPosition.y / 2);
+        global_mouse_x = (xpos - (cam.get_position().x)) * (1 / cam.get_zoom()); //- cameraPosition.x / 2);
+        global_mouse_y = (ypos - (cam.get_position().y)) * (1 / cam.get_zoom()); //- cameraPosition.y / 2);
     }
     if(button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
         global_mouse_x = MOUSE_NOTHING_POS;
@@ -156,33 +159,11 @@ void key_button_callback(GLFWwindow* window, int key, int scancode, int action, 
         else if (action == GLFW_PRESS && paused) paused = false;
     }
     if (key == GLFW_KEY_R && action == GLFW_PRESS){
-        zoomLevel = 1.0f;
-        cameraPosition = glm::vec3(0.0f,0.0f,0.0f);
+        cam.set_zoom(1.f);
+        cam.set_position(glm::vec2(0.f,0.f));
     }
 }
-void updateCamera() {
-    float cameraSpeed = 0.02f;
-    
-    // Move camera based on key states
-    if (W_Pressed) {
-        cameraPosition.y -= cameraSpeed;
-    }
-    if (A_Pressed) {
-        cameraPosition.x += cameraSpeed;
-    }
-    if (S_Pressed) {
-        cameraPosition.y += cameraSpeed;
-    }
-    if (D_Pressed) {
-        cameraPosition.x -= cameraSpeed;
-    }
-    if (Up_Pressed) {
-        zoomLevel += cameraSpeed;
-    }
-    if (Down_Pressed && zoomLevel > 0.1f) {
-        zoomLevel -= cameraSpeed;
-    }
-}
+
 int main(int argc, char* argv[]) {
     uint N_CIRCLES = 2000;
     bool state;
@@ -205,7 +186,7 @@ int main(int argc, char* argv[]) {
     std::normal_distribution<float> dist1(2,0.3f);
     std::normal_distribution<float> dist2(-2,0.3f);
     std::uniform_real_distribution<float> even_dist(-1.f,1.f);
-    std::normal_distribution<float> mass_dist(200.f,60.f);
+    std::normal_distribution<float> mass_dist(250.f,90.f);
     std::uniform_real_distribution<float> vel_dist(-0.008f, 0.008f);
     std::uniform_real_distribution<float> angleDist(0, 2 * M_PI);
     std::uniform_real_distribution<float> radiusDist(0, 1.f);
@@ -251,44 +232,48 @@ int main(int argc, char* argv[]) {
     std::vector<Circle_Texture> circle_textures; circle_textures.reserve(N_CIRCLES);
 
     const uint VERTEX_SIZE = ((CIRCLE_SEGMENTS + 1) * 2);
-    float spacing = 0.1;
-    // I dont know why this is not working
-    std::vector<vec2f> points_1 = gen_spiral(N_CIRCLES / 4, 0.0,0.0 ,spacing,0.0,rng);
-    std::vector<vec2f> points_2 = gen_spiral(N_CIRCLES / 4, 0.0,0.0 ,spacing,5,rng);
-    std::vector<vec2f> points_3 = gen_spiral(N_CIRCLES / 4, 2.0,2.0 ,spacing,0.0,rng);
-    std::vector<vec2f> points_4 = gen_spiral(N_CIRCLES / 4, 2.0,2.0 ,spacing,5,rng);
+    float spacing = 0.05;
+    // I dont know why this is not working, there is some dark magic going on
+    std::vector<vec2f> points_1 = gen_spiral(N_CIRCLES / 2, 0.0,0.0 ,spacing,0.0,rng);
+    std::vector<vec2f> points_2 = gen_spiral(N_CIRCLES / 2, 0.0,0.0 ,spacing,M_PI,rng);
 
     for (size_t i = 0; i < N_CIRCLES ; i++) {
         float pos_x,pos_y;
         float mass = mass_dist(rng); 
         float radius = MASS_TO_RADIUS * mass;
         vec2f vel {0.0,0.0};
-        /*
         //std::pair<float,float> p;
         
-        if (i < N_CIRCLES / 2){
-            pos_x = dist0(rng) + 1.5f;
-            pos_y = dist0(rng) + 1.5f;
-        } else{
-            pos_x = dist0(rng) - 1.5f;
-            pos_y = dist0(rng) - 1.5f;
+        if (i < N_CIRCLES / 3){
+            pos_x = dist0(rng);
+            pos_y = dist0(rng) + 4.5f;
+        } else if (i < N_CIRCLES * 0.666){
+            pos_x = dist0(rng) - 4.5f;
+            pos_y = dist0(rng) - 4.5f;
+        }else{
+            pos_x = dist0(rng) + 2.5f;
+            pos_y = dist0(rng) - 4.5f;
         }
         
+        vel = vec2f(-pos_y,pos_x) / 3;
 
         //pos_x = p.first;
         //pos_y = p.second;
-        */
+        /*
         if (i < N_CIRCLES / 2){
-            if (i < N_CIRCLES / 4){
-                pos_x = points_1[i].x;
-                pos_y = points_1[i].y;
-            }else{
-                pos_x = points_2[i].x;
-                pos_y = points_2[i].y;
-            }   
-            vel = vec2f(-pos_y,pos_x) / 6;
+            pos_x = points_1[i].x;
+            pos_y = points_1[i].y;
+            
+            vel = vec2f(-pos_y,pos_x) / 3;
 
-        } else{
+        } else {
+            pos_x = points_1[i].x + 2.f;
+            pos_y = points_1[i].y + 2.f;
+            vel = vec2f(-(pos_y - 2.f) ,(pos_x - 2.f)) / 3;
+        }
+        */
+        /*
+        else{
             if (i < N_CIRCLES * 0.75){
                 pos_x = points_3[i].x;
                 pos_y = points_3[i].y;
@@ -298,6 +283,7 @@ int main(int argc, char* argv[]) {
             }
             vel = vec2f(-pos_y,pos_x) / 3;
         }
+        */
         
         
         //vec2f random_velocity = vec2f(vel_dist(rng), vel_dist(rng));
@@ -390,16 +376,18 @@ int main(int argc, char* argv[]) {
             glfwSetWindowTitle(window, title.c_str());
             frame_count = 0;  
         }
-        updateCamera();
+        cam.update(W_Pressed,A_Pressed,S_Pressed,D_Pressed,Up_Pressed,Down_Pressed);
         renderer.clear();
 
 
         /* Camera*/
-        glm::mat4 projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f);
-        glm::mat4 view = glm::translate(glm::mat4(1.0f),glm::vec3(cameraPosition.x, cameraPosition.y, 0.0f));
-        view = glm::scale(view, glm::vec3(zoomLevel, zoomLevel, 1.0f));
+        glm::mat4 projection = cam.get_projection_mat();
+
+        glm::mat4 view = cam.get_view_mat();
+        glm::mat4 vp = projection * view;
+
         prog.bind();
-        prog.set_uniform_mat4f("u_projection",1,GL_FALSE,glm::value_ptr(projection));
+        prog.set_uniform_mat4f("u_projection",1,GL_FALSE,glm::value_ptr(vp));
         prog.set_uniform_mat4f("u_view",1,GL_FALSE,glm::value_ptr(view));
         prog.set_uniform_1ui("vertices_per_circ",vertices_per_circ);
 
