@@ -39,15 +39,9 @@ void Camera::update(bool W_Pressed, bool A_Pressed, bool S_Pressed, bool D_Press
     }
     if (Up_Pressed) {
         zoomLevel += cameraSpeed * (zoomLevel / 10.f);
-        std::cout << "Zoom: " << zoomLevel << std::endl;
     }
     if (Down_Pressed && zoomLevel > cameraSpeed * 2) {
-        //if (zoomLevel < 0.2f){
-        //    zoomLevel = (zoomLevel - cameraSpeed * 0.25f);
-        //}else{
-            zoomLevel -= cameraSpeed * (zoomLevel / 10.f);
-        //}
-        std::cout << "Zoom: " << zoomLevel << std::endl;
+        zoomLevel -= cameraSpeed * (zoomLevel / 10.f);
 
     }
 }
