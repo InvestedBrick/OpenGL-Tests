@@ -52,8 +52,6 @@ void main() {
         return;
     }
 
-    precision highp float;
-
     data[index].force = vec2(0.0, 0.0);
     
     for (uint i = 0; i < data.length(); ++i) {
@@ -63,9 +61,9 @@ void main() {
             //float combined_radius = data[index].mass * MASS_TO_RADIUS + data[i].mass * MASS_TO_RADIUS;
 
             // Gravitational force calculation
-            if (dist > 0.0) { // Apply gravity only if not colliding
+            if (dist > 0.0) {
                 float force_magnitude = (G * data[index].mass * data[i].mass) / (dist * dist);
-                force_magnitude = min(force_magnitude, 0.01); // Limit force magnitude
+                force_magnitude = min(force_magnitude, 0.05); // Limit force magnitude
                 vec2 force = (direction / dist) * force_magnitude;
                 data[index].force += force;
             } 
