@@ -1,7 +1,6 @@
 #version 430
 layout (local_size_x = 64) in;
 
-uniform uint vertices_per_circ;
 
 struct CircleData {
     float mass;
@@ -11,9 +10,9 @@ struct CircleData {
     vec2 force;      
 };
 
-struct Vertex {
-    vec2 pos;
-};
+//struct Vertex {
+//    vec2 pos;
+//};
 
 const float G = 0.0015;
 const float MASS_TO_RADIUS = 0.0001; // Converts mass to radius for collision detection
@@ -24,25 +23,6 @@ layout (std430, binding = 0) buffer DataBuffer {
     CircleData data[];
 };
 
-layout (std430, binding = 1) buffer VertexBuffer {
-    Vertex vertices[];
-};
-
-layout (std430, binding = 2) buffer CosSinBuffer{
-    vec2 cos_sin_precalcs[];
-};
-
-void calc_positions(uint idx) {
-    uint base_idx = idx * vertices_per_circ;
-    vertices[base_idx].pos = vec2(data[idx].pos);
-    uint pos_idx = 1;
-    float rad = data[idx].mass * MASS_TO_RADIUS;
-    for (int i = 0; i < vertices_per_circ - 1; ++i) {
-        vec2 xy = rad * cos_sin_precalcs[i];
-        vertices[base_idx + pos_idx].pos = data[idx].pos + xy;
-        pos_idx++;
-    }
-}
 
 
 void main() {
@@ -85,7 +65,7 @@ void main() {
 
     data[index].pos += data[index].vel * dt; 
 
-    calc_positions(index);
+    //calc_positions(index);
 
     data[index].color = clamp(sqrt(data[index].vel.x * data[index].vel.x + data[index].vel.y * data[index].vel.y) / 2.0, 0.0, 1.0);
 
