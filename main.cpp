@@ -239,16 +239,25 @@ int main(int argc, char* argv[]) {
         float radius = MASS_TO_RADIUS * mass;
         vec2f vel {0.0,0.0};
         //std::pair<float,float> p;
-        
+        pos_x = dist0(rng);
+        pos_y = dist0(rng);
         if (i < N_CIRCLES / 2){
-            pos_x = dist0(rng);
-            pos_y = dist0(rng) + 4.5f;
+            pos_x += 25.f;
+            if (i < N_CIRCLES / 4){
+                pos_y += 10.f;
+            }else{
+                pos_y += 5.f;
+            }
         } else {
-            pos_x = dist0(rng);
-            pos_y = dist0(rng) - 4.5f;
+            pos_x -= 25.f;
+            if (i < 3 * N_CIRCLES / 4){
+                pos_y -= 10.f;
+            }else{
+                pos_y -= 5.f;
+            }
         }
         
-        vel = vec2f(-pos_y,pos_x) / 3;
+        vel = vec2f(-pos_y,pos_x) * 0.07f;
 
         //vec2f random_velocity = vec2f(vel_dist(rng), vel_dist(rng));
         circs.emplace_back(pos_x,pos_y,mass,vel); 
@@ -316,17 +325,16 @@ int main(int argc, char* argv[]) {
         cam.update(W_Pressed,A_Pressed,S_Pressed,D_Pressed,Up_Pressed,Down_Pressed);
         renderer.clear();
 
-
         /* Camera*/
         glm::mat4 projection = cam.get_projection_mat();
-
+        
         glm::mat4 view = cam.get_view_mat();
 
         prog.bind();
         prog.set_uniform_mat4f("u_projection",1,GL_FALSE,glm::value_ptr(projection));
         prog.set_uniform_mat4f("u_view",1,GL_FALSE,glm::value_ptr(view));
         //prog.set_uniform_1ui("vertices_per_circ",vertices_per_circ);
-
+        
         if (!paused || first_pass){
             if (state == GPU_STATE){
                 compute_prog.bind();
@@ -398,6 +406,7 @@ int main(int argc, char* argv[]) {
                         interleaved_data.push_back(vel_abs);
                     }
                    
+                }
             }
         }
         /* Render here */
@@ -407,9 +416,9 @@ int main(int argc, char* argv[]) {
         /* Poll for and process events */
         glCall(glfwPollEvents());
         first_pass = false;
+
     }
 
     glfwTerminate();
     return 0;
 }
-
