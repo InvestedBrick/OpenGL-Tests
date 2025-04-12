@@ -22,7 +22,7 @@ void Camera::move_by(const glm::vec2 &offset)
 
 void Camera::update(bool W_Pressed, bool A_Pressed, bool S_Pressed, bool D_Pressed, bool Up_Pressed, bool Down_Pressed)
 {
-    float cameraSpeed = 0.5f;
+    float cameraSpeed = 0.7f;
     
     // Move camera based on key states
     if (W_Pressed) {

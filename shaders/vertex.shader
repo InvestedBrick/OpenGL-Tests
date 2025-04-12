@@ -1,10 +1,9 @@
 #version 430 core
-//layout (location = 0) in int vertexID;
 
 uniform mat4 u_projection;
 uniform mat4 u_view;
-uniform uint vertices_per_circ;
 
+layout (location = 0) in vec2 aPos; // Unit circle geometry
 
 
 struct CircleData {
@@ -15,19 +14,14 @@ struct CircleData {
     vec2 force;      
 };
 
-struct Vertex {
-    vec2 pos;
-};
 
 layout (std430, binding = 0) buffer DataBuffer {
     CircleData data[];
 };
 
-layout (std430, binding = 1) buffer VertexBuffer {
-    Vertex vertices[];
-};
 
 
+const float MASS_TO_RADIUS = 0.0001; // Converts mass to radius for collision detection
 
 
 out vec3 vColor; // Pass color to fragment shader
@@ -46,9 +40,9 @@ vec3 getColor(float c) {
 
 void main() {
 
-    gl_Position = u_projection * u_view * vec4(vertices[gl_VertexID].pos, 0.0, 1.0);
-    uint data_idx = gl_VertexID / vertices_per_circ;
-    
-    vColor = getColor(data[data_idx].color);
-    //vColor = vec3(1.0,0.0,0.0);
+    CircleData c = data[gl_InstanceID];
+    vec2 worldPos = c.pos + aPos * c.mass * MASS_TO_RADIUS;
+    gl_Position =  u_projection * u_view * vec4(worldPos, 0.0, 1.0);
+
+    vColor = getColor(c.color);
 }
