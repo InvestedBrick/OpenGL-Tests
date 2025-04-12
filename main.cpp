@@ -257,7 +257,7 @@ int main(int argc, char* argv[]) {
             }
         }
         
-        vel = vec2f(-pos_y,pos_x) * 0.07f;
+        vel = vec2f(-pos_y,pos_x) * 0.06f;
 
         //vec2f random_velocity = vec2f(vel_dist(rng), vel_dist(rng));
         circs.emplace_back(pos_x,pos_y,mass,vel); 
