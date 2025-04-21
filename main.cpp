@@ -244,16 +244,16 @@ int main(int argc, char* argv[]) {
         if (i < N_CIRCLES / 2){
             pos_x += 25.f;
             if (i < N_CIRCLES / 4){
-                pos_y += 10.f;
+                pos_y += 25.f;
             }else{
-                pos_y += 5.f;
+                pos_y -= 25.f;
             }
         } else {
             pos_x -= 25.f;
             if (i < 3 * N_CIRCLES / 4){
-                pos_y -= 10.f;
-            }else{
-                pos_y -= 5.f;
+                pos_y += 25.f;
+            }else{ 
+                pos_y -= 25.f;
             }
         }
         
