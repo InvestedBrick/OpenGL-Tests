@@ -306,7 +306,6 @@ int main(int argc, char* argv[]) {
 
     glCall(glMatrixMode(GL_PROJECTION));
 
-    bool first_pass = true;
     paused = true;
     unbind_all();
     const float calculation_dt = 1.f / 60.f; // aim for 60 frames
@@ -335,7 +334,7 @@ int main(int argc, char* argv[]) {
         prog.set_uniform_mat4f("u_view",1,GL_FALSE,glm::value_ptr(view));
         //prog.set_uniform_1ui("vertices_per_circ",vertices_per_circ);
         
-        if (!paused || first_pass){
+        if (!paused){
             if (state == GPU_STATE){
                 compute_prog.bind();
                 //compute_prog.set_uniform_1ui("data_len",N_CIRCLES);
@@ -415,7 +414,6 @@ int main(int argc, char* argv[]) {
         glCall(glfwSwapBuffers(window));
         /* Poll for and process events */
         glCall(glfwPollEvents());
-        first_pass = false;
 
     }
 
