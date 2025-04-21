@@ -10,9 +10,6 @@ struct CircleData {
     vec2 force;      
 };
 
-//struct Vertex {
-//    vec2 pos;
-//};
 
 const float G = 0.0015;
 const float MASS_TO_RADIUS = 0.0001; // Converts mass to radius for collision detection
@@ -43,7 +40,7 @@ void main() {
             // Gravitational force calculation
             if (dist > 0.0) {
                 float force_magnitude = (G * data[index].mass * data[i].mass) / (dist * dist);
-                force_magnitude = min(force_magnitude, 0.05); // Limit force magnitude
+                force_magnitude = min(force_magnitude, 0.1); // Limit force magnitude
                 vec2 force = (direction / dist) * force_magnitude;
                 data[index].force += force;
             } 
